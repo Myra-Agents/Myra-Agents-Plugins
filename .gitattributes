@@ -1,0 +1,2 @@
+# the executable plugin scripts have no extension — help GitHub linguist
+agents/echo-agent/echo-agent linguist-language=JavaScript
