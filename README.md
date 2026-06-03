@@ -21,7 +21,7 @@ a folder if none does.
 | Group | For | Examples |
 |-------|-----|----------|
 | [`agents/`](./agents) | agent-provider plugins (contribute agents) | echo-agent |
-| [`notifications/`](./notifications) | event reactions that ping a channel (Slack, webhook, email) | slack-notify |
+| [`notifications/`](./notifications) | event reactions that ping a channel (Slack, webhook, email) | slack-notify (JS), webhook (TS) |
 | [`integrations/`](./integrations) | event reactions that sync into another system (trackers, CI, DB, exports) | — |
 
 ## Read this first

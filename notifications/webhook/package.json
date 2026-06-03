@@ -1,0 +1,10 @@
+{
+  "name": "myra-plugin-webhook",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "devDependencies": {
+    "@myra/shared": "github:Myra-Agents/Myra-Agents-Shared",
+    "bun-types": "latest"
+  }
+}

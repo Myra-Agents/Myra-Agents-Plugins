@@ -6,6 +6,7 @@ frames to the plugin's stdin as NDJSON.
 
 See [PROTOCOL.md](../PROTOCOL.md#role-2--event-reaction).
 
-| Plugin | Reacts to | What it does |
-|--------|-----------|--------------|
-| [slack-notify](./slack-notify) | `agent-result-changed` | Posts to a Slack webhook when a card reaches awaiting-review / waiting-feedback / done. |
+| Plugin | Lang | Reacts to | What it does |
+|--------|------|-----------|--------------|
+| [slack-notify](./slack-notify) | JS (node) | `agent-result-changed` | Posts to a Slack webhook when a card reaches awaiting-review / waiting-feedback / done. |
+| [webhook](./webhook) | TS (bun) | `agent-result-changed` | Same idea, typed against `@myra/shared`. POSTs JSON to any webhook. |
