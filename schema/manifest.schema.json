@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://github.com/Gamma-Software/Myra-Agents-Plugins/schema/manifest.schema.json",
+  "$id": "https://github.com/Myra-Agents/Myra-Agents-Plugins/schema/manifest.schema.json",
   "title": "Myra Agents plugin manifest",
   "type": "object",
   "required": ["name"],

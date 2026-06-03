@@ -1,6 +1,6 @@
 # Myra Agents — Plugins
 
-Open-source plugins for [Myra Agents](https://github.com/Gamma-Software/Myra-Agents).
+Open-source plugins for [Myra Agents](https://github.com/Myra-Agents/Myra-Agents).
 The core server is a closed binary, but it loads plugins at runtime over a small,
 language-agnostic contract — so anyone can extend it without the core source.
 
