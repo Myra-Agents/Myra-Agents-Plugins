@@ -57,7 +57,7 @@ A plugin may fill **either or both** roles.
 picker after the user's own presets. When a card runs such an agent, the core
 spawns `binary` with `argsTemplate` (the literal `{prompt}` replaced by the
 card's prompt) — exactly like a user-defined preset. No live IPC; the manifest is
-the whole contract. See `examples/echo-agent/`.
+the whole contract. See `agents/echo-agent/`.
 
 ## Role 2 — Event reaction
 
@@ -79,7 +79,7 @@ JSON object per line (NDJSON) to its **stdin** for every matching bus frame:
   A fresh process gets a fresh subscription — no replay of frames buffered while
   it was down.
 
-See `examples/slack-notify/`.
+See `notifications/slack-notify/`.
 
 ## Events reference
 

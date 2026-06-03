@@ -8,10 +8,21 @@ A plugin is a folder under `~/.myra-agents/plugins/<name>/` with a
 `manifest.json`. Two roles, either or both:
 
 - **Agent provider** — contribute agents (the manifest's `providesAgents`) that
-  show up in the card agent picker. See [`examples/echo-agent`](./examples/echo-agent).
+  show up in the card agent picker. See [`agents/echo-agent`](./agents/echo-agent).
 - **Event reaction** — subscribe to bus events (`agent-result-changed`, …); the
   core pipes them to your executable's stdin as NDJSON. See
-  [`examples/slack-notify`](./examples/slack-notify).
+  [`notifications/slack-notify`](./notifications/slack-notify).
+
+## Catalog
+
+Plugins are grouped by purpose. Drop a new plugin in the folder that fits, or add
+a folder if none does.
+
+| Group | For | Examples |
+|-------|-----|----------|
+| [`agents/`](./agents) | agent-provider plugins (contribute agents) | echo-agent |
+| [`notifications/`](./notifications) | event reactions that ping a channel (Slack, webhook, email) | slack-notify |
+| [`integrations/`](./integrations) | event reactions that sync into another system (trackers, CI, DB, exports) | — |
 
 ## Read this first
 
@@ -24,16 +35,16 @@ can validate your manifest against.
 
 ```bash
 # try an agent provider
-cp -r examples/echo-agent ~/.myra-agents/plugins/echo-agent
+cp -r agents/echo-agent ~/.myra-agents/plugins/echo-agent
 chmod +x ~/.myra-agents/plugins/echo-agent/echo-agent
 # restart the app → "Echo Agent" appears in the picker
 ```
 
 ## Contributing
 
-PRs adding example plugins are welcome. Keep examples small, dependency-free
-where possible, and document their config. Validate the manifest against the
-schema before submitting.
+PRs adding plugins are welcome. Put it in the matching group folder (above),
+keep it small and dependency-free where possible, document its config in a
+`README.md`, and validate the manifest against the schema before submitting.
 
 ## License
 

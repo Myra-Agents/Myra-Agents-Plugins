@@ -7,7 +7,7 @@ pipeline without a real CLI agent installed.
 ## Install
 
 ```bash
-cp -r examples/echo-agent ~/.myra-agents/plugins/echo-agent
+cp -r agents/echo-agent ~/.myra-agents/plugins/echo-agent
 chmod +x ~/.myra-agents/plugins/echo-agent/echo-agent
 # restart the Myra Agents app
 ```

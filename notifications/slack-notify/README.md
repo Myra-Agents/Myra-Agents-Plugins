@@ -6,7 +6,7 @@ An **event-reaction** plugin: posts a Slack message when a card reaches
 ## Install
 
 ```bash
-cp -r examples/slack-notify ~/.myra-agents/plugins/slack-notify
+cp -r notifications/slack-notify ~/.myra-agents/plugins/slack-notify
 export SLACK_WEBHOOK_URL="https://hooks.slack.com/services/…"   # in the server's env
 # restart the Myra Agents app
 ```
@@ -18,7 +18,7 @@ post), so you can verify the wiring first.
 
 ```bash
 echo '{"event":"agent-result-changed","payload":{"card":{"title":"Demo","status":"done","agentResult":"all green"}}}' \
-  | node examples/slack-notify/index.mjs
+  | node notifications/slack-notify/index.mjs
 ```
 
 Requires Node ≥ 18 (for global `fetch`).
