@@ -1,0 +1,56 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/Gamma-Software/Myra-Agents-Plugins/schema/manifest.schema.json",
+  "title": "Myra Agents plugin manifest",
+  "type": "object",
+  "required": ["name"],
+  "additionalProperties": false,
+  "properties": {
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Unique plugin name."
+    },
+    "version": {
+      "type": "string",
+      "description": "Semver, informational."
+    },
+    "exec": {
+      "type": "string",
+      "description": "Executable for the event-reaction role. Relative paths resolve against the plugin dir; bare names resolve on PATH."
+    },
+    "args": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Extra argv passed to exec."
+    },
+    "subscribes": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Bus events forwarded to exec's stdin. [\"*\"] = all."
+    },
+    "providesAgents": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/agentPreset" },
+      "description": "Agent presets this plugin contributes."
+    }
+  },
+  "$defs": {
+    "agentPreset": {
+      "type": "object",
+      "required": ["id", "name", "binary", "argsTemplate"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "name": { "type": "string", "minLength": 1 },
+        "binary": { "type": "string", "minLength": 1 },
+        "argsTemplate": {
+          "type": "string",
+          "pattern": "\\{prompt\\}",
+          "description": "Must contain the literal {prompt} placeholder."
+        },
+        "workingDir": { "type": "string" }
+      }
+    }
+  }
+}

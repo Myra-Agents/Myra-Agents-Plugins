@@ -1,0 +1,41 @@
+#!/usr/bin/env node
+// echo-agent — an agent-provider plugin for Myra Agents.
+//
+// The core spawns this like any agent preset: `./echo-agent "<full prompt>"`,
+// in the card's working directory. The prompt ends with the standard Myra
+// "agent protocol" footer telling the agent where to write its result JSON and
+// which cardId to use. A real agent would do work here; this one just echoes
+// the task back and reports `awaiting_review`.
+
+const { writeFileSync } = require("node:fs");
+
+const prompt = process.argv[2] ?? "";
+
+// The footer contains:
+//   write a JSON file to:
+//     <result_path>
+//   {"cardId": "<card_id>", "status": "awaiting_review", ...}
+const pathMatch = prompt.match(/write a JSON file to:\s*\n\s*(.+)/);
+const cardMatch = prompt.match(/"cardId":\s*"([^"]+)"/);
+
+if (!pathMatch || !cardMatch) {
+  console.error("echo-agent: could not find result path / cardId in the prompt");
+  process.exit(1);
+}
+
+const resultPath = pathMatch[1].trim();
+const cardId = cardMatch[1];
+
+// Everything before the protocol separator is the real task.
+const task = prompt.split("\n---\n")[0].trim();
+
+writeFileSync(
+  resultPath,
+  JSON.stringify({
+    cardId,
+    status: "awaiting_review",
+    result: `Echo:\n\n${task}`,
+  }),
+);
+
+console.log(`echo-agent: wrote result for card ${cardId}`);

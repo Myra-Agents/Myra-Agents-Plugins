@@ -1,0 +1,7 @@
+{
+  "name": "slack-notify",
+  "version": "0.1.0",
+  "exec": "node",
+  "args": ["./index.mjs"],
+  "subscribes": ["agent-result-changed"]
+}
