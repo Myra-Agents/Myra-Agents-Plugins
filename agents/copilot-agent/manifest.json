@@ -1,0 +1,12 @@
+{
+  "name": "copilot-agent",
+  "version": "0.1.0",
+  "providesAgents": [
+    {
+      "id": "copilot",
+      "name": "GitHub Copilot",
+      "binary": "./copilot-agent",
+      "argsTemplate": "{prompt}"
+    }
+  ]
+}

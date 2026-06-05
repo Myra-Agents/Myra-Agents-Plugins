@@ -1,0 +1,67 @@
+#!/usr/bin/env node
+// copilot-agent — an agent-provider plugin for Myra Agents.
+//
+// The core spawns this like any agent preset: `./copilot-agent "<full prompt>"`,
+// in the card's working directory. The prompt ends with the standard Myra
+// "agent protocol" footer telling the agent where to write its result JSON and
+// which cardId to use. This wrapper hands the task to the `copilot` CLI, captures
+// its output, and writes that back as the card result.
+
+const { writeFileSync } = require("node:fs");
+const { spawnSync } = require("node:child_process");
+
+const prompt = process.argv[2] ?? "";
+
+// The protocol footer contains:
+//   write a JSON file to:
+//     <result_path>
+//   {"cardId": "<card_id>", "status": "awaiting_review", ...}
+const pathMatch = prompt.match(/write a JSON file to:\s*\n\s*(.+)/);
+const cardMatch = prompt.match(/"cardId":\s*"([^"]+)"/);
+
+if (!pathMatch || !cardMatch) {
+  console.error("copilot-agent: could not find result path / cardId in the prompt");
+  process.exit(1);
+}
+
+const resultPath = pathMatch[1].trim();
+const cardId = cardMatch[1];
+
+// Everything before the protocol separator is the real task.
+const task = prompt.split("\n---\n")[0].trim();
+
+// Hand the task to the CLI. The card's working directory is inherited (cwd).
+const bin = process.env.COPILOT_AGENT_BIN || "copilot";
+const run = spawnSync(bin, ["-p", task, "--allow-all-tools"], {
+  encoding: "utf8",
+  maxBuffer: 64 * 1024 * 1024,
+});
+
+if (run.error) {
+  if (run.error.code === "ENOENT") {
+    console.error(
+      "copilot-agent: '" + bin + "' not found on PATH. Install the GitHub Copilot CLI " +
+        "or set COPILOT_AGENT_BIN to its path.",
+    );
+  } else {
+    console.error("copilot-agent: failed to spawn '" + bin + "': " + run.error.message);
+  }
+  process.exit(1);
+}
+
+if (run.status !== 0) {
+  console.error("copilot-agent: copilot exited with code " + run.status);
+  if (run.stderr) console.error(run.stderr.trim());
+  process.exit(run.status || 1);
+}
+
+writeFileSync(
+  resultPath,
+  JSON.stringify({
+    cardId,
+    status: "awaiting_review",
+    result: (run.stdout || "").trim(),
+  }),
+);
+
+console.log("copilot-agent: wrote result for card " + cardId);
