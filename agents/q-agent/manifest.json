@@ -1,0 +1,12 @@
+{
+  "name": "q-agent",
+  "version": "0.1.0",
+  "providesAgents": [
+    {
+      "id": "q",
+      "name": "Amazon Q Developer",
+      "binary": "./q-agent",
+      "argsTemplate": "{prompt}"
+    }
+  ]
+}

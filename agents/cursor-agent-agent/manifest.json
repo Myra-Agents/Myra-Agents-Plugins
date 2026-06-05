@@ -1,0 +1,12 @@
+{
+  "name": "cursor-agent-agent",
+  "version": "0.1.0",
+  "providesAgents": [
+    {
+      "id": "cursor-agent",
+      "name": "Cursor CLI",
+      "binary": "./cursor-agent-agent",
+      "argsTemplate": "{prompt}"
+    }
+  ]
+}

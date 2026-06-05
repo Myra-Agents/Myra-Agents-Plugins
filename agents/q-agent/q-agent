@@ -1,0 +1,83 @@
+#!/usr/bin/env node
+// q-agent — an agent-provider plugin for Myra Agents.
+//
+// The core spawns this like any agent preset: `./q-agent "<full prompt>"`, in
+// the card's working directory. The prompt ends with the standard Myra "agent
+// protocol" footer telling the agent where to write its result JSON and which
+// cardId to use. This wrapper hands the task to the `q` CLI, captures its
+// output, and writes that back as the card result (`awaiting_review`).
+//
+// Default runs the CLI fully unattended. Set MYRA_AGENT_APPROVAL=safe for the
+// more restrained approval tier where the CLI offers one (see README).
+
+const { writeFileSync } = require("node:fs");
+const { spawnSync } = require("node:child_process");
+
+const LABEL = "q-agent";
+const DEFAULT_BIN = "q";
+const INSTALL_HINT =
+  "Install Amazon Q Developer (https://docs.aws.amazon.com/amazonq/latest/qdeveloper-ug/command-line.html) or set Q_AGENT_BIN to its path.";
+
+// Build the argv + environment for the task. `safe` honours
+// MYRA_AGENT_APPROVAL=safe; the default (false) runs fully unattended.
+function invoke(task, safe) {
+  const args = safe ? ["chat", "--no-interactive", task] : ["chat", "--no-interactive", "--trust-all-tools", task];
+  return { args, env: process.env };
+}
+
+const prompt = process.argv[2] ?? "";
+
+// The protocol footer contains:
+//   write a JSON file to:
+//     <result_path>
+//   {"cardId": "<card_id>", "status": "awaiting_review", ...}
+const pathMatch = prompt.match(/write a JSON file to:\s*\n\s*(.+)/);
+const cardMatch = prompt.match(/"cardId":\s*"([^"]+)"/);
+
+if (!pathMatch || !cardMatch) {
+  console.error(LABEL + ": could not find result path / cardId in the prompt");
+  process.exit(1);
+}
+
+const resultPath = pathMatch[1].trim();
+const cardId = cardMatch[1];
+
+// Everything before the protocol separator is the real task.
+const task = prompt.split("\n---\n")[0].trim();
+
+const bin = process.env.Q_AGENT_BIN || DEFAULT_BIN;
+const safe = (process.env.MYRA_AGENT_APPROVAL || "").toLowerCase() === "safe";
+const { args, env } = invoke(task, safe);
+
+// Hand the task to the CLI. The card's working directory is inherited (cwd).
+const run = spawnSync(bin, args, {
+  encoding: "utf8",
+  maxBuffer: 64 * 1024 * 1024,
+  env,
+});
+
+if (run.error) {
+  if (run.error.code === "ENOENT") {
+    console.error(LABEL + ": '" + bin + "' not found on PATH. " + INSTALL_HINT);
+  } else {
+    console.error(LABEL + ": failed to spawn '" + bin + "': " + run.error.message);
+  }
+  process.exit(1);
+}
+
+if (run.status !== 0) {
+  console.error(LABEL + ": " + bin + " exited with code " + run.status);
+  if (run.stderr) console.error(run.stderr.trim());
+  process.exit(run.status || 1);
+}
+
+writeFileSync(
+  resultPath,
+  JSON.stringify({
+    cardId,
+    status: "awaiting_review",
+    result: (run.stdout || "").trim(),
+  }),
+);
+
+console.log(LABEL + ": wrote result for card " + cardId);

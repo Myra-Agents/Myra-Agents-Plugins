@@ -1,0 +1,12 @@
+{
+  "name": "droid-agent",
+  "version": "0.1.0",
+  "providesAgents": [
+    {
+      "id": "droid",
+      "name": "Factory Droid",
+      "binary": "./droid-agent",
+      "argsTemplate": "{prompt}"
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "name": "gemini-agent",
+  "version": "0.1.0",
+  "providesAgents": [
+    {
+      "id": "gemini",
+      "name": "Gemini CLI",
+      "binary": "./gemini-agent",
+      "argsTemplate": "{prompt}"
+    }
+  ]
+}

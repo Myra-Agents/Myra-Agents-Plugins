@@ -1,0 +1,12 @@
+{
+  "name": "crush-agent",
+  "version": "0.1.0",
+  "providesAgents": [
+    {
+      "id": "crush",
+      "name": "Crush",
+      "binary": "./crush-agent",
+      "argsTemplate": "{prompt}"
+    }
+  ]
+}

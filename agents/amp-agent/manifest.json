@@ -1,0 +1,12 @@
+{
+  "name": "amp-agent",
+  "version": "0.1.0",
+  "providesAgents": [
+    {
+      "id": "amp",
+      "name": "Sourcegraph Amp",
+      "binary": "./amp-agent",
+      "argsTemplate": "{prompt}"
+    }
+  ]
+}

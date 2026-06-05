@@ -1,0 +1,12 @@
+{
+  "name": "aider-agent",
+  "version": "0.1.0",
+  "providesAgents": [
+    {
+      "id": "aider",
+      "name": "Aider",
+      "binary": "./aider-agent",
+      "argsTemplate": "{prompt}"
+    }
+  ]
+}
