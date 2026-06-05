@@ -1,0 +1,12 @@
+{
+  "name": "codex-local-agent",
+  "version": "0.1.0",
+  "providesAgents": [
+    {
+      "id": "codex-local",
+      "name": "OpenAI Codex CLI (local)",
+      "binary": "./codex-local-agent",
+      "argsTemplate": "{prompt}"
+    }
+  ]
+}

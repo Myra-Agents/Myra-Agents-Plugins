@@ -29,3 +29,23 @@ See [PROTOCOL.md](../PROTOCOL.md#role-1--agent-provider).
 > Set `MYRA_AGENT_APPROVAL=safe` to use the CLI's more restrained approval tier
 > where it offers one. Each also honours a `<NAME>_AGENT_BIN` binary override;
 > see the plugin's own README. Each agent needs its CLI installed separately.
+
+## Local-LLM presets
+
+Same CLIs, but pointed at a **local OpenAI-compatible endpoint** (Ollama by
+default) using only env/flags — your global CLI config is never touched. Set
+`MYRA_LOCAL_BASE_URL` (default `http://localhost:11434/v1`), `MYRA_LOCAL_MODEL`
+(default `qwen2.5-coder`), and `MYRA_LOCAL_API_KEY` (default `ollama`). Needs a
+local model server (Ollama / LM Studio / vLLM / llama.cpp) running.
+
+| Plugin | Backs onto | How it targets local |
+|--------|-----------|----------------------|
+| [opencode-local](./opencode-local-agent) | opencode | injects an Ollama provider via `OPENCODE_CONFIG_CONTENT` + `--model ollama/<model>` |
+| [aider-local](./aider-local-agent) | aider | `OLLAMA_API_BASE=<host>` + `--model ollama_chat/<model>` |
+| [codex-local](./codex-local-agent) | codex | `codex exec --oss -m <model>` (custom base needs `~/.codex/config.toml`) |
+| [qwen-local](./qwen-local-agent) | qwen | `OPENAI_BASE_URL` / `OPENAI_API_KEY` / `OPENAI_MODEL` |
+| [goose-local](./goose-local-agent) | goose | `GOOSE_PROVIDER=ollama` + `GOOSE_MODEL` + `OLLAMA_HOST` |
+
+Not shipped as local presets: **crush** (needs a provider config file, no clean
+env path), **claude** (Anthropic-only; local only via an `ANTHROPIC_BASE_URL`
+proxy). See [../TODO.md](../TODO.md).

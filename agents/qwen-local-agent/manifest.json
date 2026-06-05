@@ -1,0 +1,12 @@
+{
+  "name": "qwen-local-agent",
+  "version": "0.1.0",
+  "providesAgents": [
+    {
+      "id": "qwen-local",
+      "name": "Qwen Code (local)",
+      "binary": "./qwen-local-agent",
+      "argsTemplate": "{prompt}"
+    }
+  ]
+}

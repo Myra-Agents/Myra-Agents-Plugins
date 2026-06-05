@@ -33,6 +33,21 @@ and any existing `agents/*-agent` as the template).
 3. `chmod +x` the wrapper; validate the manifest against
    `schema/manifest.schema.json`; add a row to `agents/README.md`.
 
+## Local-LLM presets — not yet shipped
+
+Local (Ollama / OpenAI-compatible) presets exist for opencode, aider, codex,
+qwen, goose (see `agents/*-local-agent`). Still missing, because they have no
+clean env-only path:
+
+- **crush-local** — Crush picks providers from a config file (`.crush.json` /
+  catalog), not env vars. To ship: write a temp provider config in the wrapper
+  and point Crush at it (e.g. `CRUSH_CONFIG`/`--config`), with `base_url` from
+  `MYRA_LOCAL_BASE_URL`. Verify the flag/env first.
+- **claude-local** — Claude Code is Anthropic-only; "local" means fronting it
+  with an Anthropic-compatible proxy and setting `ANTHROPIC_BASE_URL`
+  (+ `ANTHROPIC_API_KEY`). Only worth a preset once a recommended proxy is
+  settled; otherwise document it instead of shipping a half-preset.
+
 ## Unrelated follow-up (host side, private server repo)
 
 Plugin-contributed presets show a **delete** affordance in Settings even though

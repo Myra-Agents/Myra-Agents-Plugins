@@ -1,0 +1,12 @@
+{
+  "name": "goose-local-agent",
+  "version": "0.1.0",
+  "providesAgents": [
+    {
+      "id": "goose-local",
+      "name": "Goose (local)",
+      "binary": "./goose-local-agent",
+      "argsTemplate": "{prompt}"
+    }
+  ]
+}

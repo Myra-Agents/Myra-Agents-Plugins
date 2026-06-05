@@ -1,0 +1,12 @@
+{
+  "name": "opencode-local-agent",
+  "version": "0.1.0",
+  "providesAgents": [
+    {
+      "id": "opencode-local",
+      "name": "opencode (local)",
+      "binary": "./opencode-local-agent",
+      "argsTemplate": "{prompt}"
+    }
+  ]
+}

@@ -1,0 +1,83 @@
+#!/usr/bin/env node
+// qwen-local-agent — a "local LLM" agent-provider plugin for Myra Agents.
+//
+// Same as the qwen-agent wrapper, but points the `qwen` CLI at a local
+// OpenAI-compatible endpoint (Ollama by default) using only env/flags — the
+// user's global qwen config is never touched. Tune via:
+//   MYRA_LOCAL_BASE_URL  (default http://localhost:11434/v1)
+//   MYRA_LOCAL_MODEL     (default qwen2.5-coder)
+//   MYRA_LOCAL_API_KEY   (default ollama)
+// Plus QWEN_AGENT_BIN (binary override) and MYRA_AGENT_APPROVAL=safe (restrained tier).
+
+const { writeFileSync } = require("node:fs");
+const { spawnSync } = require("node:child_process");
+
+const LABEL = "qwen-local-agent";
+const DEFAULT_BIN = "qwen";
+const INSTALL_HINT =
+  "Install Qwen Code (local) (https://qwenlm.github.io/qwen-code-docs/en/users/configuration/model-providers/) or set QWEN_AGENT_BIN to its path.";
+
+const BASE = process.env.MYRA_LOCAL_BASE_URL || "http://localhost:11434/v1";
+const MODEL = process.env.MYRA_LOCAL_MODEL || "qwen2.5-coder";
+const KEY = process.env.MYRA_LOCAL_API_KEY || "ollama";
+// Host form (no trailing /v1) for tools that want the bare host.
+const HOST = BASE.replace(/\/v1\/?$/, "");
+
+// Build the argv + environment for the task, wiring the local endpoint.
+function invoke(task, safe) {
+  // Fully env-driven OpenAI-compatible: base URL + key + model.
+  const env = { ...process.env, OPENAI_BASE_URL: BASE, OPENAI_API_KEY: KEY, OPENAI_MODEL: MODEL };
+  const args = safe ? ["--approval-mode=auto_edit", "-p", task] : ["--yolo", "-p", task];
+  return { args, env };
+}
+
+const prompt = process.argv[2] ?? "";
+
+const pathMatch = prompt.match(/write a JSON file to:\s*\n\s*(.+)/);
+const cardMatch = prompt.match(/"cardId":\s*"([^"]+)"/);
+
+if (!pathMatch || !cardMatch) {
+  console.error(LABEL + ": could not find result path / cardId in the prompt");
+  process.exit(1);
+}
+
+const resultPath = pathMatch[1].trim();
+const cardId = cardMatch[1];
+
+const task = prompt.split("\n---\n")[0].trim();
+
+const bin = process.env.QWEN_AGENT_BIN || DEFAULT_BIN;
+const safe = (process.env.MYRA_AGENT_APPROVAL || "").toLowerCase() === "safe";
+const { args, env } = invoke(task, safe);
+
+const run = spawnSync(bin, args, {
+  encoding: "utf8",
+  maxBuffer: 64 * 1024 * 1024,
+  env,
+});
+
+if (run.error) {
+  if (run.error.code === "ENOENT") {
+    console.error(LABEL + ": '" + bin + "' not found on PATH. " + INSTALL_HINT);
+  } else {
+    console.error(LABEL + ": failed to spawn '" + bin + "': " + run.error.message);
+  }
+  process.exit(1);
+}
+
+if (run.status !== 0) {
+  console.error(LABEL + ": " + bin + " exited with code " + run.status);
+  if (run.stderr) console.error(run.stderr.trim());
+  process.exit(run.status || 1);
+}
+
+writeFileSync(
+  resultPath,
+  JSON.stringify({
+    cardId,
+    status: "awaiting_review",
+    result: (run.stdout || "").trim(),
+  }),
+);
+
+console.log(LABEL + ": wrote result for card " + cardId);
