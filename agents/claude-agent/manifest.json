@@ -1,0 +1,12 @@
+{
+  "name": "claude-agent",
+  "version": "0.1.0",
+  "providesAgents": [
+    {
+      "id": "claude",
+      "name": "Claude Code",
+      "binary": "./claude-agent",
+      "argsTemplate": "{prompt}"
+    }
+  ]
+}

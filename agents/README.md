@@ -10,3 +10,6 @@ See [PROTOCOL.md](../PROTOCOL.md#role-1--agent-provider).
 | Plugin | What it does |
 |--------|--------------|
 | [echo-agent](./echo-agent) | Echoes the task back and marks the card awaiting-review. Smoke test for the agent pipeline. |
+| [claude-agent](./claude-agent) | Runs the task with the [Claude Code](https://docs.claude.com/claude-code) CLI (`claude -p`). |
+| [copilot-agent](./copilot-agent) | Runs the task with the GitHub Copilot CLI (`copilot -p`). |
+| [opencode-agent](./opencode-agent) | Runs the task with the [opencode](https://opencode.ai) CLI (`opencode run`). |
