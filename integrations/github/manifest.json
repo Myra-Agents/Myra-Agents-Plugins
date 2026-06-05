@@ -20,10 +20,10 @@
         "header": "X-Hub-Signature-256",
         "secretFrom": "GH_SECRET"
       },
-      "action": "create_card",
+      "action": "add_card",
       "map": {
         "title": "$.pull_request.title",
-        "body": "$.pull_request.body"
+        "description": "$.pull_request.body"
       }
     }
   ]
