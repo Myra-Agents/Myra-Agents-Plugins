@@ -39,7 +39,8 @@ scans this directory once at startup. Restart to pick up changes.
 | Field            | Type       | Notes |
 |------------------|------------|-------|
 | `name`           | string     | **required**, unique. |
-| `version`        | string     | semver, informational. |
+| `version`        | string     | semver, informational — the plugin's own release. |
+| `minProtocol`    | string     | semver requirement for the **core plugin protocol** (see [Protocol versioning](#protocol-versioning)). Bare version = caret; ranges allowed. Absent = baseline. A separate axis from `version`. |
 | `exec`           | string     | executable for the event-reaction role. Relative paths (`./x`) resolve against the plugin dir; bare names (`node`, `python`) resolve on `PATH`. Omit for agent-only plugins. |
 | `args`           | string[]   | extra argv passed to `exec`. |
 | `subscribes`     | string[]   | bus events to forward to `exec`'s stdin. `["*"]` = all. Empty/absent = no event role. |
@@ -50,6 +51,41 @@ scans this directory once at startup. Restart to pick up changes.
 can ship its own agent executable). See `schema/manifest.schema.json`.
 
 A plugin may fill **either or both** roles.
+
+## Protocol versioning
+
+Two version axes, kept distinct:
+
+- **`version`** — the plugin's *own* release. Informational; the core never reads it.
+- **`minProtocol`** — the *contract* the plugin needs. The compatibility gate.
+
+The core implements a single **plugin-protocol** version, bumped on every change
+to this contract (MAJOR = breaking, MINOR = backward-compatible addition). The
+current protocol is **`1.0.0`**. A plugin declares the lowest it can run against
+via `minProtocol`, a **semver requirement**:
+
+```json
+{ "name": "slack", "version": "0.2.0", "minProtocol": "1.0.0" }
+```
+
+- A **bare version** is treated as **caret** (`"1.0.0"` → `^1.0.0` → `>=1.0.0, <2.0.0`),
+  Cargo-style — a plugin built for protocol 1.x shouldn't auto-claim 2.x.
+- **Ranges** are allowed: `">=1.2, <3"`, `"^1.0"`.
+- **Absent** = no constraint (baseline) — every existing plugin.
+
+If the core **can't satisfy** `minProtocol` (or it's unparseable), the plugin is
+**incompatible**: it's still listed in **Settings → Plugins**, flagged with a
+"needs newer Myra" badge, but **inert** — its agents don't appear in the picker
+and its webhooks/inbound routes/exec don't run. Update Myra to use it.
+
+### Compatibility table
+
+| Protocol | Introduced |
+|----------|------------|
+| `1.0.0`  | Baseline: agent providers, event reaction, webhooks (outbound/inbound + verify schemes), config fields. |
+
+Bump this table (and `CURRENT_PROTOCOL` in the core) whenever the contract grows
+a capability a plugin can depend on.
 
 ## Role 1 — Agent provider
 

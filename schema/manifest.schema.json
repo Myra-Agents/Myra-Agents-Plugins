@@ -13,7 +13,12 @@
     },
     "version": {
       "type": "string",
-      "description": "Semver, informational."
+      "description": "Semver, informational. The plugin's own release."
+    },
+    "minProtocol": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Minimum core plugin-protocol this plugin needs, as a semver requirement. Bare version = caret (\"1.0.0\" -> ^1.0.0); ranges allowed (\">=1.2, <3\"). Absent = no constraint (baseline). The host refuses to run a plugin it can't satisfy. Distinct from `version` (the plugin's own release)."
     },
     "exec": {
       "type": "string",
