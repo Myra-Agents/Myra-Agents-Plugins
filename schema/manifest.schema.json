@@ -33,9 +33,108 @@
       "type": "array",
       "items": { "$ref": "#/$defs/agentPreset" },
       "description": "Agent presets this plugin contributes."
+    },
+    "config": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/configField" },
+      "description": "User-supplied settings, rendered as a form in the app. Each field's `key` is referenced by `webhooks` (urlFrom/secretFrom) and injected as an env var into any `exec`."
+    },
+    "webhooks": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/webhookSpec" },
+      "description": "Webhook transport handled by the server core. Outbound POSTs on bus events; inbound exposes a signed HTTP route. Service specifics are declared here, not coded."
     }
   },
   "$defs": {
+    "configField": {
+      "type": "object",
+      "required": ["key", "label", "type"],
+      "additionalProperties": false,
+      "properties": {
+        "key": {
+          "type": "string",
+          "pattern": "^[A-Z][A-Z0-9_]*$",
+          "description": "Identifier; referenced by webhooks and injected as an env var name into exec."
+        },
+        "label": { "type": "string", "minLength": 1 },
+        "type": {
+          "enum": ["string", "secret", "boolean", "number", "select", "multiselect"],
+          "description": "`secret` values are stored in the OS keychain, never in settings.json or logs."
+        },
+        "options": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Choices for select/multiselect."
+        },
+        "required": { "type": "boolean", "default": false },
+        "default": {},
+        "description": { "type": "string" },
+        "placeholder": { "type": "string" }
+      }
+    },
+    "webhookSpec": {
+      "type": "object",
+      "required": ["id", "direction"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "description": "Unique within the plugin." },
+        "direction": {
+          "enum": ["out", "in"],
+          "description": "`out` = core POSTs on matching bus events. `in` = core exposes a signed HTTP route."
+        },
+        "urlFrom": {
+          "type": "string",
+          "description": "out only — config key whose value is the destination URL."
+        },
+        "events": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "out only — card statuses / bus event names that fire this webhook."
+        },
+        "template": {
+          "type": "string",
+          "description": "out only — mustache-lite body. {{card.title}}, {{card.status}}, {{card.agentResult}} substituted."
+        },
+        "route": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9-]*$",
+          "description": "in only — path segment under /hooks/<plugin>/<route>."
+        },
+        "verify": { "$ref": "#/$defs/verifySpec" },
+        "action": {
+          "type": "string",
+          "description": "in only — rpc command to dispatch with the mapped payload (e.g. create_card)."
+        },
+        "map": {
+          "type": "object",
+          "additionalProperties": { "type": "string" },
+          "description": "in only — { rpcField: JSONPath } extracted from the inbound body."
+        },
+        "exec": {
+          "type": "string",
+          "description": "Optional escape hatch. Core invokes it request/response (raw request JSON on stdin → transformed payload / verify verdict on stdout) when named schemes/mapping don't fit."
+        }
+      }
+    },
+    "verifySpec": {
+      "type": "object",
+      "required": ["scheme"],
+      "additionalProperties": false,
+      "properties": {
+        "scheme": {
+          "enum": ["hmac-sha256", "slack", "stripe"],
+          "description": "Named signature scheme implemented in the core."
+        },
+        "header": {
+          "type": "string",
+          "description": "Request header carrying the signature (e.g. X-Hub-Signature-256)."
+        },
+        "secretFrom": {
+          "type": "string",
+          "description": "Config key whose value is the shared signing secret."
+        }
+      }
+    },
     "agentPreset": {
       "type": "object",
       "required": ["id", "name", "binary", "argsTemplate"],

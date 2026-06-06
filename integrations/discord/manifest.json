@@ -1,0 +1,23 @@
+{
+  "name": "discord",
+  "version": "0.1.0",
+  "config": [
+    {
+      "key": "WEBHOOK_URL",
+      "label": "Discord webhook URL",
+      "type": "secret",
+      "required": true,
+      "placeholder": "https://discord.com/api/webhooks/…",
+      "description": "Server Settings → Integrations → Webhooks → New Webhook → Copy URL"
+    }
+  ],
+  "webhooks": [
+    {
+      "id": "notify",
+      "direction": "out",
+      "urlFrom": "WEBHOOK_URL",
+      "events": ["awaiting_review", "waiting_feedback", "done"],
+      "template": "{\"content\":\"**{{card.title}}** → {{card.status}}\\n{{card.agentResult}}\"}"
+    }
+  ]
+}

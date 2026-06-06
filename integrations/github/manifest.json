@@ -1,0 +1,30 @@
+{
+  "name": "github",
+  "version": "0.1.0",
+  "config": [
+    {
+      "key": "GH_SECRET",
+      "label": "GitHub webhook secret",
+      "type": "secret",
+      "required": true,
+      "description": "The secret you set on the GitHub webhook (used to verify X-Hub-Signature-256)."
+    }
+  ],
+  "webhooks": [
+    {
+      "id": "intake",
+      "direction": "in",
+      "route": "github",
+      "verify": {
+        "scheme": "hmac-sha256",
+        "header": "X-Hub-Signature-256",
+        "secretFrom": "GH_SECRET"
+      },
+      "action": "add_card",
+      "map": {
+        "title": "$.pull_request.title",
+        "description": "$.pull_request.body"
+      }
+    }
+  ]
+}

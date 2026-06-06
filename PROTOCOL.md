@@ -81,6 +81,72 @@ JSON object per line (NDJSON) to its **stdin** for every matching bus frame:
 
 See `notifications/slack-notify/`.
 
+## Config — user-supplied settings
+
+A plugin declares the settings it needs under `config`; the app renders them as a
+form in **Settings → Plugins** and the user fills them in. Each field:
+
+```json
+{ "key": "WEBHOOK_URL", "label": "Slack webhook URL", "type": "secret", "required": true }
+```
+
+| Field | Notes |
+|-------|-------|
+| `key` | `^[A-Z][A-Z0-9_]*$`. Referenced by `webhooks` (`urlFrom`/`secretFrom`) and injected as an **env var** of the same name into any `exec`. |
+| `type` | `string` · `secret` · `boolean` · `number` · `select` · `multiselect`. |
+| `options` | choices for `select`/`multiselect`. |
+| `required`, `default`, `description`, `placeholder` | form hints. |
+
+**`secret`-typed values live in the OS keychain** — never written to
+`settings.json`, never logged. Non-secret values persist in `settings.json` under
+`pluginConfig.<plugin>`.
+
+## Role 3 — Webhooks (handled by the core)
+
+A plugin can declare **webhooks** the server core runs on its behalf — no
+executable needed. This is how `integrations/slack`, `discord`, `github` work:
+manifest-only.
+
+### Outbound — POST on bus events
+
+```json
+{ "id": "notify", "direction": "out",
+  "urlFrom": "WEBHOOK_URL",
+  "events": ["awaiting_review", "waiting_feedback", "done"],
+  "template": "{\"text\":\"{{card.title}} → {{card.status}}\"}" }
+```
+
+When a bus event matches `events`, the core renders `template` (mustache-lite:
+`{{card.title}}`, `{{card.status}}`, `{{card.agentResult}}`), resolves `urlFrom`
+from config, and POSTs (with retry). No subprocess.
+
+### Inbound — a signed HTTP route
+
+```json
+{ "id": "intake", "direction": "in", "route": "github",
+  "verify": { "scheme": "hmac-sha256", "header": "X-Hub-Signature-256", "secretFrom": "GH_SECRET" },
+  "action": "create_card",
+  "map": { "title": "$.pull_request.title", "body": "$.pull_request.body" } }
+```
+
+The core exposes `POST /hooks/<plugin>/<route>`, **verifies the signature** with
+the named scheme + the resolved secret (401 on mismatch), **maps** the JSON body
+via `map` (JSONPath), and dispatches `action` (e.g. `create_card`). Webhook routes
+authenticate by signature, not the bearer token.
+
+- Named `verify.scheme` values: `hmac-sha256`, `slack`, `stripe`.
+- Inbound senders can't reach `127.0.0.1`: use a publicly reachable instance, a
+  port-forward/tunnel, or (enrolled) the hub's public webhook URL.
+
+### Escape hatch — `exec`
+
+When a named scheme or `map` can't express a service, add `"exec": "./transform"`.
+The core invokes it **request/response** (not long-lived): the raw request
+(`{ "headers": {…}, "body": "…" }`) on **stdin**; the plugin replies on **stdout**
+with `{ "verified": true, "payload": {…} }` (inbound) or the body to POST
+(outbound). Non-zero exit / bad output ⇒ rejected + logged. Config is injected as
+env, same as agent binaries.
+
 ## Events reference
 
 | Event                  | Payload shape (abridged) |
