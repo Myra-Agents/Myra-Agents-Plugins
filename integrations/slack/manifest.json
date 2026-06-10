@@ -5,7 +5,7 @@
     {
       "key": "WEBHOOK_URL",
       "label": "Slack incoming webhook URL",
-      "type": "secret",
+      "type": "string",
       "required": true,
       "placeholder": "https://hooks.slack.com/services/…",
       "description": "Create one at https://api.slack.com/messaging/webhooks"
