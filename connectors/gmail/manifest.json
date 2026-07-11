@@ -1,0 +1,141 @@
+{
+  "name": "gmail",
+  "version": "0.1.0",
+  "exec": "node",
+  "args": ["reactor.mjs"],
+  "subscribes": ["agent-result-changed"],
+  "catalog": {
+    "name": "Gmail",
+    "icon": "mail",
+    "description": "Trigger an agent when mail arrives. Send replies. Search your inbox.",
+    "author": "Myra",
+    "verbs": ["trigger", "action"],
+    "trigger": { "summary": "New email matching your rules" },
+    "actions": [
+      {
+        "id": "send",
+        "label": "Send an email",
+        "summary": "Email the run result",
+        "config": [
+          { "key": "to", "label": "To", "type": "string", "required": true },
+          { "key": "subject", "label": "Subject", "type": "string", "placeholder": "Templated — {{title}}" },
+          { "key": "body", "label": "Body", "type": "string", "placeholder": "Templated — {{result}}" }
+        ]
+      },
+      {
+        "id": "draft",
+        "label": "Create a draft",
+        "summary": "Save the result as a Gmail draft (no send)",
+        "config": [
+          { "key": "to", "label": "To", "type": "string" },
+          { "key": "subject", "label": "Subject", "type": "string" },
+          { "key": "body", "label": "Body", "type": "string", "placeholder": "Templated — {{result}}" }
+        ]
+      }
+    ]
+  },
+  "config": [
+    {
+      "key": "OAUTH_CLIENT_ID",
+      "label": "Google OAuth client ID",
+      "type": "string",
+      "required": true,
+      "description": "Shipped Myra client by default. Desktop 'installed app' OAuth client. Override to bring your own Google Cloud client."
+    },
+    {
+      "key": "OAUTH_CLIENT_SECRET",
+      "label": "Google OAuth client secret",
+      "type": "secret",
+      "required": true,
+      "description": "For desktop/installed-app clients Google treats this as non-confidential (PKCE is the real proof). Stored in the OS keychain."
+    },
+    {
+      "key": "REFRESH_TOKEN",
+      "label": "Gmail refresh token",
+      "type": "secret",
+      "description": "Set automatically by Connect — leave blank. Stored in the server's cross-platform secret store and injected back at runtime."
+    },
+    {
+      "key": "RPC_URL",
+      "label": "Myra server URL",
+      "type": "string",
+      "required": true,
+      "default": "http://127.0.0.1:4319",
+      "description": "The local Myra server. The connector creates + launches cards via its /rpc endpoint (add_card → launch_agent)."
+    },
+    {
+      "key": "SERVER_TOKEN",
+      "label": "Server bearer token",
+      "type": "secret",
+      "description": "Only needed if the server runs with MYRA_SERVER_TOKEN set. Leave blank when /rpc is open on localhost (dev default)."
+    },
+    {
+      "key": "AGENT_PRESET_ID",
+      "label": "Default agent preset",
+      "type": "string",
+      "placeholder": "claude",
+      "description": "Agent to run for triggered cards when a rule doesn't set its own `agentId`. Any installed preset id (e.g. claude, opencode, echo)."
+    },
+    {
+      "key": "WORKING_DIR",
+      "label": "Working directory",
+      "type": "string",
+      "description": "Optional repo/dir the triggered agent runs in. Leave blank for the card's default run home."
+    },
+    {
+      "key": "GMAIL_QUERY",
+      "label": "Base Gmail search",
+      "type": "string",
+      "default": "is:unread newer_than:1d",
+      "description": "Server-side Gmail query prefilter (from:, subject:, has-text, label:). Regex is applied locally — see RULES."
+    },
+    {
+      "key": "POLL_SECONDS",
+      "label": "Poll interval (seconds)",
+      "type": "number",
+      "default": 60,
+      "description": "How often to check Gmail. 60s is polite. Keep >=30."
+    },
+    {
+      "key": "RULES",
+      "label": "Trigger rules (JSON)",
+      "type": "string",
+      "required": true,
+      "description": "JSON array. Each rule: { name, from?, subjectContains?, bodyContains?, regex?, regexField?, agentId?, prompt, requireReview? }. First matching rule wins. `prompt` may use {{subject}} {{from}} {{body}} {{snippet}} {{id}}."
+    },
+    {
+      "key": "REQUIRE_REVIEW",
+      "label": "Hold triggered cards for review",
+      "type": "boolean",
+      "default": true,
+      "description": "Safety default ON. Cards created from email land paused for you to approve before the agent runs. Turn off only once you trust your rules — email content is untrusted input."
+    },
+    {
+      "key": "MAX_TRIGGERS_PER_HOUR",
+      "label": "Max triggers / hour",
+      "type": "number",
+      "default": 20,
+      "description": "Loop guard. Prevents an inbox flood (or a self-reply loop) from spawning runaway agent runs."
+    },
+    {
+      "key": "SEND_ON_DONE",
+      "label": "Email the result when a card finishes",
+      "type": "boolean",
+      "default": false,
+      "description": "When ON, a finished card (status=done) emails its result via your Gmail. Reply-to-thread when the card came from an email."
+    },
+    {
+      "key": "SEND_TO",
+      "label": "Result recipient",
+      "type": "string",
+      "description": "Address to email finished-card results to. Leave blank to reply into the originating email thread only."
+    },
+    {
+      "key": "DRY_RUN",
+      "label": "Dry run (log, don't act)",
+      "type": "boolean",
+      "default": true,
+      "description": "Safety default ON. Matches and would-be sends are logged, no card is created and no email is sent. Flip OFF to go live."
+    }
+  ]
+}
