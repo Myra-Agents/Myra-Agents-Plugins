@@ -1,0 +1,4 @@
+# connector runtime state (per-install, never committed)
+.state.json
+.refresh_token
+.token

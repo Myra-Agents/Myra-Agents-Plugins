@@ -43,9 +43,63 @@
       "type": "array",
       "items": { "$ref": "#/$defs/webhookSpec" },
       "description": "Webhook transport handled by the server core. Outbound POSTs on bus events; inbound exposes a signed HTTP route. Service specifics are declared here, not coded."
+    },
+    "catalog": {
+      "$ref": "#/$defs/catalog",
+      "description": "Display metadata for the in-app catalog and the trigger picker: human name, icon, role verbs. Optional; surfaced (opaquely) via list_plugins."
     }
   },
   "$defs": {
+    "catalog": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string", "description": "Human-friendly display name (folder name otherwise)." },
+        "icon": { "type": "string", "description": "Icon id the app maps to a glyph (e.g. mail, slack, github)." },
+        "description": { "type": "string" },
+        "author": { "type": "string" },
+        "verbs": {
+          "type": "array",
+          "items": { "enum": ["trigger", "action", "notify", "receive", "agent"] },
+          "description": "User-facing capability tags. `trigger` = surfaces in the Add-Trigger picker."
+        },
+        "trigger": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": { "summary": { "type": "string", "description": "One-line description shown under the trigger in the picker." } }
+        },
+        "actions": {
+          "type": "array",
+          "description": "Post-run actions this connector can perform (send an email, post a message…). Surfaced in the patrol editor's Actions picker; the config is rendered as a form and passed to the connector's runAction.",
+          "items": {
+            "type": "object",
+            "required": ["id", "label"],
+            "additionalProperties": false,
+            "properties": {
+              "id": { "type": "string", "description": "Action type, dispatched to the adapter's actions[id] handler." },
+              "label": { "type": "string" },
+              "summary": { "type": "string" },
+              "config": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": ["key", "label", "type"],
+                  "additionalProperties": false,
+                  "properties": {
+                    "key": { "type": "string", "description": "Config key (lowercase); values may template {{result}} {{title}} {{card.*}}." },
+                    "label": { "type": "string" },
+                    "type": { "enum": ["string", "secret", "boolean", "number"] },
+                    "required": { "type": "boolean" },
+                    "placeholder": { "type": "string" },
+                    "description": { "type": "string" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "configField": {
       "type": "object",
       "required": ["key", "label", "type"],

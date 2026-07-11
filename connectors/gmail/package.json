@@ -1,0 +1,12 @@
+{
+  "name": "myra-connector-gmail",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Gmail connector for Myra Agents — trigger agents from incoming mail, email results, and a Gmail MCP tool. Built on the shared connector SDK.",
+  "engines": { "node": ">=18" },
+  "scripts": {
+    "connect": "node connect.mjs",
+    "mcp": "node mcp.mjs"
+  }
+}
