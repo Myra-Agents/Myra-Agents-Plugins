@@ -1,0 +1,100 @@
+{
+  "name": "gitlab",
+  "version": "0.1.0",
+  "runAction": "./run-action.mjs",
+  "catalog": {
+    "name": "GitLab",
+    "icon": "gitlab",
+    "description": "Trigger a patrol on a GitLab push, merge request, or issue. Open a merge request with the patrol's result.",
+    "author": "Myra",
+    "verbs": ["trigger", "action"],
+    "trigger": { "summary": "New push, merge request, or issue matching your rules" },
+    "setup": { "type": "oauth", "command": "node connect.mjs", "label": "Connect GitLab" },
+    "actions": [
+      {
+        "id": "create_mr",
+        "label": "Open a merge request",
+        "summary": "Push the patrol's worktree branch and open it as a draft merge request",
+        "config": [
+          {
+            "key": "projectId",
+            "label": "GitLab project",
+            "type": "string",
+            "required": true,
+            "placeholder": "group/project or 42",
+            "description": "Numeric project id or URL-encoded group/project path."
+          },
+          {
+            "key": "targetBranch",
+            "label": "Target branch",
+            "type": "string",
+            "placeholder": "Defaults to the project's default branch"
+          },
+          {
+            "key": "title",
+            "label": "Title",
+            "type": "string",
+            "placeholder": "Templated — {{title}}",
+            "description": "Leave blank to use the patrol card's title."
+          },
+          {
+            "key": "description",
+            "label": "Description",
+            "type": "string",
+            "placeholder": "Templated — {{result}}",
+            "description": "Leave blank to use the run's result."
+          }
+        ]
+      }
+    ]
+  },
+  "config": [
+    {
+      "key": "GITLAB_URL",
+      "label": "GitLab instance URL",
+      "type": "string",
+      "required": true,
+      "default": "https://gitlab.com",
+      "description": "Self-hosted? Point this at your instance, e.g. https://gitlab.mycompany.com."
+    },
+    {
+      "key": "GITLAB_TOKEN",
+      "label": "Personal access token",
+      "type": "secret",
+      "description": "Zero-setup auth: a PAT with the \"api\" scope. Set this OR the OAuth fields below, not both — a PAT here skips OAuth entirely."
+    },
+    {
+      "key": "OAUTH_CLIENT_ID",
+      "label": "GitLab OAuth application ID",
+      "type": "string",
+      "description": "Register an Application on your GitLab instance (User Settings → Applications, or Admin → Applications on self-hosted) with the \"api\" scope, then Connect below. Only needed if you're not using a Personal Access Token."
+    },
+    {
+      "key": "OAUTH_CLIENT_SECRET",
+      "label": "GitLab OAuth application secret",
+      "type": "secret"
+    },
+    {
+      "key": "REFRESH_TOKEN",
+      "label": "GitLab OAuth refresh token",
+      "type": "secret",
+      "description": "Set automatically by Connect — leave blank."
+    },
+    {
+      "key": "GITLAB_WEBHOOK_SECRET",
+      "label": "Webhook secret token",
+      "type": "secret",
+      "required": true,
+      "description": "Set the same value as the GitLab project webhook's \"Secret token\" field."
+    }
+  ],
+  "webhooks": [
+    {
+      "id": "intake",
+      "direction": "in",
+      "route": "gitlab",
+      "exec": "./normalize.mjs",
+      "action": "connector_event"
+    }
+  ]
+}

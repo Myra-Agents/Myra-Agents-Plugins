@@ -4,6 +4,7 @@
   "exec": "node",
   "args": ["reactor.mjs"],
   "subscribes": ["agent-result-changed"],
+  "runAction": "./run-action.mjs",
   "catalog": {
     "name": "Gmail",
     "icon": "mail",
@@ -11,6 +12,7 @@
     "author": "Myra",
     "verbs": ["trigger", "action"],
     "trigger": { "summary": "New email matching your rules" },
+    "setup": { "type": "oauth", "command": "node connect.mjs", "label": "Connect Gmail" },
     "actions": [
       {
         "id": "send",

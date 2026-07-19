@@ -29,6 +29,10 @@
       "items": { "type": "string" },
       "description": "Bus events forwarded to exec's stdin. [\"*\"] = all."
     },
+    "runAction": {
+      "type": "string",
+      "description": "Executable invoked request/response (raw {type,config,card} JSON on stdin → result JSON on stdout, bounded by a timeout) when the server dispatches one of this plugin's `catalog.actions` for a patrol. Same path-resolution rules as `exec` (relative paths resolve against the plugin dir; bare names resolve on PATH). Distinct from `exec`, which is long-lived for the event-reaction role."
+    },
     "providesAgents": {
       "type": "array",
       "items": { "$ref": "#/$defs/agentPreset" },
@@ -67,6 +71,17 @@
           "type": "object",
           "additionalProperties": false,
           "properties": { "summary": { "type": "string", "description": "One-line description shown under the trigger in the picker." } }
+        },
+        "setup": {
+          "type": "object",
+          "required": ["type", "command", "label"],
+          "additionalProperties": false,
+          "description": "An in-app \"Connect\" step (e.g. OAuth consent) the server can run on the user's behalf via the `run_plugin_setup` rpc — see PROTOCOL.md's \"Role 5\".",
+          "properties": {
+            "type": { "enum": ["oauth", "cli"], "description": "Informational — both run the same way (spawn `command`)." },
+            "command": { "type": "string", "description": "Shell-split argv, e.g. \"node connect.mjs\". Spawned with cwd = the plugin dir, env = the instance's resolved config." },
+            "label": { "type": "string", "description": "Button label, e.g. \"Connect GitLab\"." }
+          }
         },
         "actions": {
           "type": "array",
@@ -176,8 +191,8 @@
       "additionalProperties": false,
       "properties": {
         "scheme": {
-          "enum": ["hmac-sha256", "slack", "stripe"],
-          "description": "Named signature scheme implemented in the core."
+          "enum": ["hmac-sha256", "slack", "stripe", "gitlab"],
+          "description": "Named signature scheme implemented in the core. `gitlab` is a plain constant-time compare against the `X-Gitlab-Token` header (GitLab has no HMAC signature)."
         },
         "header": {
           "type": "string",

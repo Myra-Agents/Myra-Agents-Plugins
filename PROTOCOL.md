@@ -134,9 +134,14 @@ the named scheme + the resolved secret (401 on mismatch), **maps** the JSON body
 via `map` (JSONPath), and dispatches `action` (e.g. `create_card`). Webhook routes
 authenticate by signature, not the bearer token.
 
-- Named `verify.scheme` values: `hmac-sha256`, `slack`, `stripe`.
+- Named `verify.scheme` values: `hmac-sha256`, `slack`, `stripe`, `gitlab` (plain
+  constant-time compare against `X-Gitlab-Token` — GitLab has no HMAC signature).
 - Inbound senders can't reach `127.0.0.1`: use a publicly reachable instance, a
   port-forward/tunnel, or (enrolled) the hub's public webhook URL.
+- `action` can be a built-in rpc (`create_card`/`add_card`) or `"connector_event"` —
+  routes the mapped payload to every enabled patrol whose `eventTrigger.connector`
+  matches `payload.connector` and whose rules match (see "Role 4 — Patrol actions"
+  below for the payload shape a connector should map/normalize to).
 
 ### Escape hatch — `exec`
 
@@ -146,6 +151,51 @@ The core invokes it **request/response** (not long-lived): the raw request
 with `{ "verified": true, "payload": {…} }` (inbound) or the body to POST
 (outbound). Non-zero exit / bad output ⇒ rejected + logged. Config is injected as
 env, same as agent binaries.
+
+## Role 4 — Patrol actions
+
+A plugin declares what it can do **after a patrol's card finishes** under
+`catalog.actions` (see `schema/manifest.schema.json`'s `$defs.catalog.actions`) —
+surfaced in the app's patrol editor as an Actions picker, each action's `config`
+rendered as a form. To actually run one, the manifest also needs:
+
+```json
+{ "runAction": "./run-action.mjs" }
+```
+
+When a patrol's card reaches `done`, the core walks its configured `actions`,
+templates each one's `config` (`{{result}}`, `{{title}}`, `{{status}}`, `{{card.*}}`
+against the finished card), and invokes `runAction` **request/response** (not
+long-lived, same resolution + timeout as the webhook `exec` escape hatch):
+`{ "type": "<action id>", "config": {…templated}, "card": {…} }` on **stdin**, a
+JSON result on **stdout**. One action failing is logged and does not block the
+others or fail the run. See `connectors/gmail/run-action.mjs` for the reference
+shape (`runActionFromStdin(adapter)` from the connector SDK).
+
+This is the symmetric counterpart to Role 3's inbound webhooks: webhooks bring an
+external event **in** to trigger a patrol; `runAction` sends a patrol's result
+**out** once it's done.
+
+## Role 5 — In-app setup (Connect)
+
+A plugin that needs a one-time interactive step before it works (OAuth consent,
+mainly) declares it under `catalog.setup`:
+
+```json
+{ "catalog": { "setup": { "type": "oauth", "command": "node connect.mjs", "label": "Connect GitLab" } } }
+```
+
+The app renders a **Connect** button (`setup.label`) that calls the
+`run_plugin_setup { instanceId }` rpc. Unlike `runAction`/webhook `exec`
+(request/response, bounded by a timeout), this spawns `setup.command`
+**long-lived enough to complete the flow** — an OAuth consent command opens a
+browser and waits on a loopback redirect (see
+`connectors/_sdk/oauth.mjs::runConsentFlow`, up to 5 minutes). The rpc itself
+returns immediately (`{ "started": true }`); progress streams on the bus as
+`plugin-setup-log { id, line }` per output line, finishing with
+`plugin-setup-done { id, ok }`. Refuses a second concurrent setup for the same
+instance. `cwd` = the plugin dir, `env` = the instance's resolved config (same
+resolution as `exec`/`runAction`).
 
 ## Events reference
 
