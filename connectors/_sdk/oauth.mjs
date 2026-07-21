@@ -35,6 +35,7 @@ export async function storeRefreshToken(id, token) {
         ...(process.env.SERVER_TOKEN ? { authorization: `Bearer ${process.env.SERVER_TOKEN}` } : {}),
       },
       body: JSON.stringify({ plugin: id, key: "REFRESH_TOKEN", value: token }),
+      signal: AbortSignal.timeout(10_000),
     });
     if (r.ok) return "server";
   } catch {
@@ -91,6 +92,18 @@ export async function runConsentFlow({ id, clientId, clientSecret, auth }) {
         .end(`<h2>${id} connected.</h2>You can close this tab and return to Myra.`);
       server.close();
       resolve({ code: url.searchParams.get("code"), redirectUri: `http://localhost:${port}/` });
+    });
+    // A connector with a fixed `redirectPort` (GitLab) can only run one consent
+    // at a time — if the port is already bound (a prior sign-in still open),
+    // fail fast with a clear message instead of an unhandled 'error' crash.
+    server.on("error", (e) => {
+      reject(
+        new Error(
+          e.code === "EADDRINUSE"
+            ? `sign-in port :${auth.redirectPort} is busy — another sign-in is already open; close it and retry`
+            : `loopback server error: ${e.message}`,
+        ),
+      );
     });
     // Google's installed-app flow accepts any loopback port (RFC 8252), so we
     // bind :0 by default. GitLab does exact redirect-URI matching, so a
@@ -164,10 +177,13 @@ async function exchange(tokenUri, { clientId, clientSecret, redirectUri, body })
   // the connector actually has one (Google desktop clients do).
   if (clientSecret) form.set("client_secret", clientSecret);
   if (redirectUri) form.set("redirect_uri", redirectUri);
+  // A timeout so a stalled token endpoint can't hang the consent flow (which
+  // holds the server's run_plugin_setup lock until the process exits).
   const r = await fetch(tokenUri, {
     method: "POST",
     headers: { "content-type": "application/x-www-form-urlencoded" },
     body: form,
+    signal: AbortSignal.timeout(20_000),
   });
   if (!r.ok) throw new Error(`token endpoint ${r.status}: ${await r.text()}`);
   return r.json();
