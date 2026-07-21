@@ -91,7 +91,8 @@
                   "dynamic": { "type": "boolean", "description": "For a `select`: fetch the option list live from the connector's `optionsExec` (keyed by this field's `key`) instead of the static `options` array. The app renders a searchable dropdown that still allows a free-typed value." },
                   "required": { "type": "boolean" },
                   "placeholder": { "type": "string" },
-                  "description": { "type": "string" }
+                  "description": { "type": "string" },
+                  "hidden": { "type": "boolean", "description": "Never rendered as an editable field in the trigger row — set programmatically (e.g. the event kind, fixed by the Add-Trigger menu). Its `options` are still read to build the menu." }
                 }
               }
             }
@@ -153,7 +154,8 @@
                     "dynamic": { "type": "boolean", "description": "For a `select`: fetch the option list live from the connector's `optionsExec` (keyed by this field's `key`) instead of the static `options` array." },
                     "required": { "type": "boolean" },
                     "placeholder": { "type": "string" },
-                    "description": { "type": "string" }
+                    "description": { "type": "string" },
+                    "hidden": { "type": "boolean", "description": "Never rendered as an editable field — set programmatically." }
                   }
                 }
               }

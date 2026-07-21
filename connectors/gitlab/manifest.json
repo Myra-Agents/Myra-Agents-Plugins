@@ -29,7 +29,8 @@
           "label": "Event types",
           "type": "multiselect",
           "options": ["merge_request", "issue", "push"],
-          "description": "Which GitLab events fire this trigger. Leave empty for all."
+          "hidden": true,
+          "description": "The event kind is fixed per trigger (chosen from the Add-Trigger menu). Options feed that menu; not shown as an editable field."
         }
       ]
     },
