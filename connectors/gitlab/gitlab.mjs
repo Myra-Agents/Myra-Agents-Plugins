@@ -32,6 +32,29 @@ export async function getIssue(token, baseUrl, projectId, iid) {
   return call(token, baseUrl, `/projects/${encodeURIComponent(projectId)}/issues/${iid}`);
 }
 
+// ── Polling (the outbound, no-public-URL trigger path) ───────────────────────
+// All three take a since cursor and return recent items, newest first.
+
+export async function listMergeRequests(token, baseUrl, projectId, { updatedAfter, max = 20 } = {}) {
+  const q = new URLSearchParams({ order_by: "updated_at", sort: "desc", per_page: String(max) });
+  if (updatedAfter) q.set("updated_after", updatedAfter);
+  return call(token, baseUrl, `/projects/${encodeURIComponent(projectId)}/merge_requests?${q}`);
+}
+
+export async function listIssuesUpdated(token, baseUrl, projectId, { updatedAfter, max = 20 } = {}) {
+  const q = new URLSearchParams({ order_by: "updated_at", sort: "desc", per_page: String(max) });
+  if (updatedAfter) q.set("updated_after", updatedAfter);
+  return call(token, baseUrl, `/projects/${encodeURIComponent(projectId)}/issues?${q}`);
+}
+
+// GitLab's events `after` is a plain date (YYYY-MM-DD), so this is coarse — the
+// caller dedupes by commit sha to avoid re-reporting within the day.
+export async function listPushEvents(token, baseUrl, projectId, { after, max = 20 } = {}) {
+  const q = new URLSearchParams({ action: "pushed", per_page: String(max) });
+  if (after) q.set("after", after);
+  return call(token, baseUrl, `/projects/${encodeURIComponent(projectId)}/events?${q}`);
+}
+
 // GitLab has no separate "draft" boolean on create — a `Draft: ` title prefix is
 // the documented mechanism (still honored by every current GitLab version) and
 // is what marks the MR not-mergeable until a maintainer removes it.

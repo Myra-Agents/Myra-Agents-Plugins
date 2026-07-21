@@ -70,7 +70,27 @@
         "trigger": {
           "type": "object",
           "additionalProperties": false,
-          "properties": { "summary": { "type": "string", "description": "One-line description shown under the trigger in the picker." } }
+          "properties": {
+            "summary": { "type": "string", "description": "One-line description shown under the trigger in the picker." },
+            "config": {
+              "type": "array",
+              "description": "Connector-specific trigger settings (e.g. which GitLab project/events to watch), rendered in the patrol editor's trigger row and stored on the task's eventTrigger.config. Same field shape as catalog.actions[].config.",
+              "items": {
+                "type": "object",
+                "required": ["key", "label", "type"],
+                "additionalProperties": false,
+                "properties": {
+                  "key": { "type": "string" },
+                  "label": { "type": "string" },
+                  "type": { "enum": ["string", "secret", "boolean", "number", "select", "multiselect"] },
+                  "options": { "type": "array", "items": { "type": "string" } },
+                  "required": { "type": "boolean" },
+                  "placeholder": { "type": "string" },
+                  "description": { "type": "string" }
+                }
+              }
+            }
+          }
         },
         "setup": {
           "type": "object",

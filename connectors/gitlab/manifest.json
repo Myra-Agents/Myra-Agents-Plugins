@@ -1,6 +1,9 @@
 {
   "name": "gitlab",
   "version": "0.1.0",
+  "exec": "node",
+  "args": ["reactor.mjs"],
+  "subscribes": ["schedules-updated"],
   "runAction": "./run-action.mjs",
   "catalog": {
     "name": "GitLab",
@@ -8,7 +11,26 @@
     "description": "Trigger a patrol on a GitLab push, merge request, or issue. Open a merge request with the patrol's result.",
     "author": "Myra",
     "verbs": ["trigger", "action"],
-    "trigger": { "summary": "New push, merge request, or issue matching your rules" },
+    "trigger": {
+      "summary": "New push, merge request, or issue matching your rules",
+      "config": [
+        {
+          "key": "project",
+          "label": "GitLab project",
+          "type": "string",
+          "required": true,
+          "placeholder": "group/project or 42",
+          "description": "The project to watch — numeric id or URL-encoded group/project path."
+        },
+        {
+          "key": "events",
+          "label": "Event types",
+          "type": "multiselect",
+          "options": ["merge_request", "issue", "push"],
+          "description": "Which GitLab events fire this trigger. Leave empty for all."
+        }
+      ]
+    },
     "setup": { "type": "oauth", "command": "node connect.mjs", "label": "Sign in with GitLab" },
     "auth": [
       {
@@ -21,14 +43,14 @@
         "id": "token",
         "label": "Token",
         "kind": "token",
-        "fields": ["GITLAB_TOKEN", "GITLAB_URL", "GITLAB_WEBHOOK_SECRET"],
+        "fields": ["GITLAB_TOKEN", "GITLAB_URL"],
         "summary": "Paste a personal access token with the \"api\" scope. Works on any instance."
       },
       {
         "id": "oauth",
         "label": "Self-hosted OAuth",
         "kind": "oauth",
-        "fields": ["GITLAB_URL", "OAUTH_CLIENT_ID", "OAUTH_CLIENT_SECRET", "GITLAB_WEBHOOK_SECRET"],
+        "fields": ["GITLAB_URL", "OAUTH_CLIENT_ID", "OAUTH_CLIENT_SECRET"],
         "summary": "Register an OAuth application on your instance (\"api\" scope), then sign in."
       }
     ],
@@ -107,11 +129,19 @@
       "description": "Filled automatically by Sign in."
     },
     {
+      "key": "POLL_SECONDS",
+      "label": "Poll interval (seconds)",
+      "type": "number",
+      "default": 60,
+      "hidden": true,
+      "description": "How often Myra checks GitLab for new merge requests / issues / pushes. 60s is polite; keep >= 30."
+    },
+    {
       "key": "GITLAB_WEBHOOK_SECRET",
-      "label": "Webhook secret (for event triggers)",
+      "label": "Webhook secret (advanced — instant delivery)",
       "type": "secret",
-      "required": true,
-      "description": "Pick any random string; set the same value here and in the GitLab project webhook's \"Secret token\" field — Myra verifies incoming events with it. Required for the manual token / self-hosted setup; the one-click Sign in path manages webhooks for you."
+      "hidden": true,
+      "description": "Optional. Triggers work out of the box by polling — no secret needed. Only set this if you also wire a GitLab webhook for instant (non-polled) delivery; then use the same value as the webhook's \"Secret token\"."
     }
   ],
   "webhooks": [

@@ -7,7 +7,16 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 
-import { getProject, listIssues, getIssue, createMergeRequest, authenticatedRemote } from "./gitlab.mjs";
+import {
+  getProject,
+  listIssues,
+  getIssue,
+  createMergeRequest,
+  authenticatedRemote,
+  listMergeRequests,
+  listIssuesUpdated,
+  listPushEvents,
+} from "./gitlab.mjs";
 
 const execFileAsync = promisify(execFile);
 
@@ -28,6 +37,72 @@ const adapter = {
     authUri: `${baseUrl()}/oauth/authorize`,
     tokenUri: `${baseUrl()}/oauth/token`,
     injectedTokenEnv: "GITLAB_TOKEN",
+  },
+
+  // TRIGGER side (poll). Outbound — no public URL needed. The SDK reporter calls
+  // this per watched project (from the server's connector_watch) and reports new
+  // items to `connector_event`. `target` = { project, events } from the patrols'
+  // trigger config. Deduped by the reporter (id = `mr:<iid>` / `issue:<iid>` /
+  // `push:<sha>`), so an item triggers once. A one-hour lookback + dedupe keeps
+  // it simple and robust to a missed cycle.
+  async pollProject(ctx, target) {
+    const token = await ctx.accessToken();
+    const base = baseUrl();
+    const project = target.project;
+    const kinds = target.events?.length ? target.events : ["merge_request", "issue", "push"];
+    const since = new Date(Date.now() - 3600_000).toISOString();
+    const out = [];
+    const guard = async (fn) => {
+      try {
+        return await fn();
+      } catch (e) {
+        ctx.log(`poll ${project}:`, e.message);
+        return [];
+      }
+    };
+
+    if (kinds.includes("merge_request")) {
+      for (const mr of await guard(() => listMergeRequests(token, base, project, { updatedAfter: since }))) {
+        out.push({
+          type: "merge_request",
+          id: `mr:${mr.iid}`,
+          from: mr.author?.username || "",
+          subject: mr.title || "",
+          body: mr.description || "",
+          branch: mr.source_branch || "",
+          projectId: String(project),
+          action: mr.state || "",
+        });
+      }
+    }
+    if (kinds.includes("issue")) {
+      for (const is of await guard(() => listIssuesUpdated(token, base, project, { updatedAfter: since }))) {
+        out.push({
+          type: "issue",
+          id: `issue:${is.iid}`,
+          from: is.author?.username || "",
+          subject: is.title || "",
+          body: is.description || "",
+          projectId: String(project),
+          action: is.state || "",
+        });
+      }
+    }
+    if (kinds.includes("push")) {
+      for (const ev of await guard(() => listPushEvents(token, base, project, { after: since.slice(0, 10) }))) {
+        const pd = ev.push_data || {};
+        out.push({
+          type: "push",
+          id: `push:${pd.commit_to || ev.id}`,
+          from: ev.author?.username || ev.author_username || "",
+          subject: `push to ${pd.ref || ""}`,
+          body: pd.commit_title || "",
+          branch: pd.ref || "",
+          projectId: String(project),
+        });
+      }
+    }
+    return out;
   },
 
   // Post-run action (declared in manifest catalog.actions). `config` is already
