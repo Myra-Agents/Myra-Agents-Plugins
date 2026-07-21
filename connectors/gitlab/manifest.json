@@ -14,6 +14,9 @@
     "verbs": ["trigger", "action"],
     "trigger": {
       "summary": "New push, merge request, or issue matching your rules",
+      "ruleOptions": {
+        "from": { "optionsField": "author", "dependsOn": ["project", "events"] }
+      },
       "config": [
         {
           "key": "project",

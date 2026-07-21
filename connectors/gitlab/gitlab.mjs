@@ -55,16 +55,36 @@ export async function listPushEvents(token, baseUrl, projectId, { after, max = 2
   return call(token, baseUrl, `/projects/${encodeURIComponent(projectId)}/events?${q}`);
 }
 
-// Projects the token can access — for the project picker. `read_api`/`api` covers it.
-export async function listProjects(token, baseUrl, { search, max = 50 } = {}) {
+// Projects the token can access — for the project picker. `read_api`/`api` covers
+// it. Paginated (1-based `page`, `perPage` items) so the app can lazy-load on
+// scroll.
+export async function listProjects(token, baseUrl, { search, page = 1, perPage = 30 } = {}) {
   const q = new URLSearchParams({
     membership: "true",
     order_by: "last_activity_at",
     simple: "true",
-    per_page: String(max),
+    per_page: String(perPage),
+    page: String(page),
   });
   if (search) q.set("search", search);
   return call(token, baseUrl, `/projects?${q}`);
+}
+
+// Members of a project (direct + inherited group members) — for the author
+// picker. `minAccessLevel` filters to those who can actually perform the event
+// (GitLab levels: Guest 10, Reporter 20, Developer 30, Maintainer 40, Owner 50).
+// `/members/all` includes inherited members, so a group's developers show up on
+// each project. Paginated like `listProjects`.
+export async function listProjectMembers(
+  token,
+  baseUrl,
+  projectId,
+  { search, page = 1, perPage = 30, minAccessLevel } = {},
+) {
+  const q = new URLSearchParams({ per_page: String(perPage), page: String(page) });
+  if (search) q.set("query", search);
+  if (minAccessLevel) q.set("min_access_level", String(minAccessLevel));
+  return call(token, baseUrl, `/projects/${encodeURIComponent(projectId)}/members/all?${q}`);
 }
 
 // GitLab has no separate "draft" boolean on create — a `Draft: ` title prefix is

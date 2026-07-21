@@ -145,6 +145,14 @@ export async function accessToken({ id, clientId, clientSecret, auth }) {
     clientId, clientSecret,
     body: { refresh_token: refresh, grant_type: "refresh_token" },
   });
+  // Rotating providers (GitLab) return a NEW refresh_token on every refresh and
+  // invalidate the old one — persist it back or the next refresh fails with
+  // invalid_grant (~1h after sign-in). Google omits it (non-rotating), so there's
+  // nothing to store. Update this process's env too, for a later same-run refresh.
+  if (tok.refresh_token && tok.refresh_token !== refresh) {
+    process.env.REFRESH_TOKEN = tok.refresh_token;
+    await storeRefreshToken(id, tok.refresh_token).catch(() => {});
+  }
   cache.set(id, { token: tok.access_token, exp: Date.now() + tok.expires_in * 1000 });
   return tok.access_token;
 }

@@ -17,9 +17,14 @@ import {
   listIssuesUpdated,
   listPushEvents,
   listProjects,
+  listProjectMembers,
 } from "./gitlab.mjs";
 
 const execFileAsync = promisify(execFile);
+
+// Page size for the dynamic option pickers (project / author) — the app
+// lazy-loads the next page on scroll. `hasMore` is inferred from a full page.
+const PAGE_SIZE = 30;
 
 function baseUrl() {
   return (process.env.GITLAB_URL || "https://gitlab.com").replace(/\/$/, "");
@@ -152,19 +157,49 @@ const adapter = {
   },
 
   // Dynamic option lists for trigger/action config fields (declared in the
-  // manifest via `dynamic: true` + `optionsExec`). The server proxies a
-  // `connector_options { field }` rpc to options.mjs, which calls the handler
-  // named for the field. `project` = the projects this token can see, for the
-  // patrol editor's project picker — `read_api`/`api` scope already covers it,
-  // so no extra permission beyond what MR creation needs.
+  // manifest via `dynamic: true` + `optionsExec`, or `trigger.ruleOptions` for a
+  // rule field). The server proxies a `connector_options { field, search, page,
+  // context }` rpc to options.mjs, which calls the handler named for the field.
+  // Each returns `{ options: [{value,label}], hasMore }` so the app can lazy-load
+  // on scroll. `api`/`read_api` scope already covers all of this — no extra
+  // permission beyond what MR creation needs.
   options: {
-    async project(ctx, { search } = {}) {
+    // The projects this token can see, for the project picker.
+    async project(ctx, { search, page = 1 } = {}) {
       const token = await ctx.accessToken();
-      const projects = await listProjects(token, baseUrl(), { search });
-      return projects.map((p) => ({
-        value: p.path_with_namespace,
-        label: p.name_with_namespace || p.path_with_namespace,
-      }));
+      const projects = await listProjects(token, baseUrl(), { search, page, perPage: PAGE_SIZE });
+      return {
+        options: projects.map((p) => ({
+          value: p.path_with_namespace,
+          label: p.name_with_namespace || p.path_with_namespace,
+        })),
+        hasMore: projects.length === PAGE_SIZE,
+      };
+    },
+
+    // Members of the selected project who can perform the trigger's event kind
+    // (from `context.project` + `context.events`), for the Author filter. Push
+    // and merge requests need Developer+ (push/branch access); issues are open to
+    // any project member. Empty until a project is picked.
+    async author(ctx, { search, page = 1, context } = {}) {
+      const project = context?.project;
+      if (!project) return { options: [], hasMore: false };
+      const kind = Array.isArray(context?.events) ? context.events[0] : undefined;
+      const minAccessLevel = kind === "issue" ? 10 : 30; // issue: any member; push/MR: Developer+
+      const token = await ctx.accessToken();
+      const members = await listProjectMembers(token, baseUrl(), project, {
+        search,
+        page,
+        perPage: PAGE_SIZE,
+        minAccessLevel,
+      });
+      return {
+        options: members.map((m) => ({
+          value: m.username,
+          label: m.name ? `${m.name} (@${m.username})` : `@${m.username}`,
+        })),
+        hasMore: members.length === PAGE_SIZE,
+      };
     },
   },
 

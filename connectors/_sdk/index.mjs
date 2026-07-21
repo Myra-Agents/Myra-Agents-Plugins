@@ -83,11 +83,16 @@ export async function runActionFromStdin(adapter) {
 }
 
 /**
- * Entrypoint for a connector's `options.mjs`: read `{ field, search? }` from
- * stdin, call the adapter's `options[field]` handler, print the resulting
- * `[{ value, label }]` list on stdout, exit. Powers dynamic config-field
- * dropdowns (e.g. GitLab's project picker) — the server proxies a
- * `connector_options` rpc here. Read-only; same access-token wiring as actions.
+ * Entrypoint for a connector's `options.mjs`: read `{ field, search?, page?,
+ * context? }` from stdin, call the adapter's `options[field]` handler, print
+ * `{ options: [{value,label}], hasMore }` on stdout, exit. Powers dynamic
+ * config-field dropdowns (e.g. GitLab's project / author pickers) with
+ * lazy-loading — the server proxies a `connector_options` rpc here. `context`
+ * carries sibling field values a handler may depend on (e.g. author needs the
+ * selected project). Read-only; same access-token wiring as actions.
+ *
+ * A handler may return a bare `[{value,label}]` array (treated as a single page,
+ * `hasMore: false`) or `{ options, hasMore }` for pagination.
  */
 export async function runOptionsFromStdin(adapter) {
   const chunks = [];
@@ -115,8 +120,13 @@ export async function runOptionsFromStdin(adapter) {
     log: (...a) => console.error(`[${adapter.id}:options]`, ...a),
   };
   try {
-    const opts = (await handler(ctx, { search: payload.search })) || [];
-    process.stdout.write(JSON.stringify(opts));
+    const raw = await handler(ctx, {
+      search: payload.search,
+      page: payload.page || 1,
+      context: payload.context || {},
+    });
+    const result = Array.isArray(raw) ? { options: raw, hasMore: false } : { options: raw?.options ?? [], hasMore: !!raw?.hasMore };
+    process.stdout.write(JSON.stringify(result));
     process.exit(0);
   } catch (e) {
     process.stderr.write(String(e?.message || e));

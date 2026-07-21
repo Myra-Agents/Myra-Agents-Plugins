@@ -76,6 +76,19 @@
           "additionalProperties": false,
           "properties": {
             "summary": { "type": "string", "description": "One-line description shown under the trigger in the picker." },
+            "ruleOptions": {
+              "type": "object",
+              "description": "Turns a generic rule field (from/subjectContains/bodyContains) into a dynamic dropdown fed by the connector's optionsExec. Keyed by rule field name; the value names the options field and its context dependencies (e.g. `from` → an author picker scoped to the selected project).",
+              "additionalProperties": {
+                "type": "object",
+                "required": ["optionsField"],
+                "additionalProperties": false,
+                "properties": {
+                  "optionsField": { "type": "string", "description": "The `optionsExec` field key that supplies the list (e.g. \"author\")." },
+                  "dependsOn": { "type": "array", "items": { "type": "string" }, "description": "Trigger-config keys passed as `context` and that re-trigger a fetch when they change (e.g. [\"project\", \"events\"])." }
+                }
+              }
+            },
             "config": {
               "type": "array",
               "description": "Connector-specific trigger settings (e.g. which GitLab project/events to watch), rendered in the patrol editor's trigger row and stored on the task's eventTrigger.config. Same field shape as catalog.actions[].config.",
