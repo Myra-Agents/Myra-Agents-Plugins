@@ -83,6 +83,26 @@
             "label": { "type": "string", "description": "Button label, e.g. \"Connect GitLab\"." }
           }
         },
+        "auth": {
+          "type": "array",
+          "description": "Auth methods this connector offers, rendered as tabs in the connect wizard. Each groups a subset of the `config` fields; a method with `kind: oauth` also shows a Sign in button that runs `catalog.setup`. Fields not claimed by any method (and not `hidden`) render above the tabs as common settings.",
+          "items": {
+            "type": "object",
+            "required": ["id", "label", "kind"],
+            "additionalProperties": false,
+            "properties": {
+              "id": { "type": "string" },
+              "label": { "type": "string", "description": "Tab label." },
+              "kind": { "enum": ["token", "oauth"], "description": "`oauth` shows a Sign in button (`catalog.setup`); `token` is fields only." },
+              "summary": { "type": "string", "description": "One-line hint shown inside the tab." },
+              "fields": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "Config field keys shown in this tab. Omit for a method that needs no input (e.g. one-click sign in with a shipped client)."
+              }
+            }
+          }
+        },
         "actions": {
           "type": "array",
           "description": "Post-run actions this connector can perform (send an email, post a message…). Surfaced in the patrol editor's Actions picker; the config is rendered as a form and passed to the connector's runAction.",
@@ -138,7 +158,8 @@
         "required": { "type": "boolean", "default": false },
         "default": {},
         "description": { "type": "string" },
-        "placeholder": { "type": "string" }
+        "placeholder": { "type": "string" },
+        "hidden": { "type": "boolean", "default": false, "description": "Never rendered in the config form — set programmatically (e.g. an OAuth refresh token filled by the Sign in flow)." }
       }
     },
     "webhookSpec": {
