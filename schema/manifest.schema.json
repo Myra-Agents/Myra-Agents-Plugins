@@ -215,6 +215,10 @@
           "enum": ["out", "in"],
           "description": "`out` = core POSTs on matching bus events. `in` = core exposes a signed HTTP route."
         },
+        "optional": {
+          "type": "boolean",
+          "description": "in only — the route still works, but the connector's primary trigger path is elsewhere (e.g. polling), so the app doesn't surface the inbound URL by default. For instant-delivery opt-in on a routable host."
+        },
         "urlFrom": {
           "type": "string",
           "description": "out only — config key whose value is the destination URL."

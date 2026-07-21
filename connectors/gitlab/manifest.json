@@ -156,6 +156,7 @@
       "id": "intake",
       "direction": "in",
       "route": "gitlab",
+      "optional": true,
       "exec": "./normalize.mjs",
       "action": "connector_event"
     }
