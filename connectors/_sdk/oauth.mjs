@@ -150,7 +150,11 @@ export async function accessToken({ id, clientId, clientSecret, auth }) {
 }
 
 async function exchange(tokenUri, { clientId, clientSecret, redirectUri, body }) {
-  const form = new URLSearchParams({ client_id: clientId, client_secret: clientSecret, ...body });
+  const form = new URLSearchParams({ client_id: clientId, ...body });
+  // Public PKCE clients (e.g. GitLab's shipped Myra app) have no secret — sending
+  // an empty client_secret makes GitLab reject the exchange. Only include it when
+  // the connector actually has one (Google desktop clients do).
+  if (clientSecret) form.set("client_secret", clientSecret);
   if (redirectUri) form.set("redirect_uri", redirectUri);
   const r = await fetch(tokenUri, {
     method: "POST",

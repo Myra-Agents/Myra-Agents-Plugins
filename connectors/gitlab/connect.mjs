@@ -15,12 +15,13 @@ const arg = (name) => {
   return i >= 0 ? process.argv[i + 1] : undefined;
 };
 const clientId = arg("client-id") || process.env.OAUTH_CLIENT_ID;
-const clientSecret = arg("client-secret") || process.env.OAUTH_CLIENT_SECRET;
-if (!clientId || !clientSecret) {
+// Public PKCE clients (gitlab.com Sign in via the shipped Myra app) have no
+// secret; only self-hosted OAuth apps registered as confidential do.
+const clientSecret = arg("client-secret") || process.env.OAUTH_CLIENT_SECRET || "";
+if (!clientId) {
   console.error(
-    "Need OAUTH_CLIENT_ID / OAUTH_CLIENT_SECRET (env or --client-id/--client-secret) — " +
-      "register an Application on your GitLab instance first (User Settings → Applications; " +
-      "or Admin → Applications on self-hosted) with the \"api\" scope.",
+    "Need OAUTH_CLIENT_ID (env or --client-id) — register an Application on your GitLab " +
+      "instance (User Settings → Applications; or Admin → Applications on self-hosted) with the \"api\" scope.",
   );
   process.exit(1);
 }
