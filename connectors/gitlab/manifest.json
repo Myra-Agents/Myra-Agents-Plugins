@@ -21,14 +21,14 @@
         "id": "token",
         "label": "Token",
         "kind": "token",
-        "fields": ["GITLAB_TOKEN", "GITLAB_URL"],
+        "fields": ["GITLAB_TOKEN", "GITLAB_URL", "GITLAB_WEBHOOK_SECRET"],
         "summary": "Paste a personal access token with the \"api\" scope. Works on any instance."
       },
       {
         "id": "oauth",
         "label": "Self-hosted OAuth",
         "kind": "oauth",
-        "fields": ["GITLAB_URL", "OAUTH_CLIENT_ID", "OAUTH_CLIENT_SECRET"],
+        "fields": ["GITLAB_URL", "OAUTH_CLIENT_ID", "OAUTH_CLIENT_SECRET", "GITLAB_WEBHOOK_SECRET"],
         "summary": "Register an OAuth application on your instance (\"api\" scope), then sign in."
       }
     ],
@@ -110,7 +110,8 @@
       "key": "GITLAB_WEBHOOK_SECRET",
       "label": "Webhook secret (for event triggers)",
       "type": "secret",
-      "description": "Only needed to trigger patrols from GitLab events. Pick any random string; set the same value here and in the GitLab project webhook's \"Secret token\" field — Myra verifies incoming events with it. Skip it if you only use the \"open a merge request\" action."
+      "required": true,
+      "description": "Pick any random string; set the same value here and in the GitLab project webhook's \"Secret token\" field — Myra verifies incoming events with it. Required for the manual token / self-hosted setup; the one-click Sign in path manages webhooks for you."
     }
   ],
   "webhooks": [
