@@ -119,7 +119,7 @@
       "key": "OAUTH_CLIENT_ID",
       "label": "OAuth application ID",
       "type": "string",
-      "default": "359b7c0afe86d00979047d44ff1af4b86df66c25e5679f27d10da2b5186ad249",
+      "default": "a4194a920626b1e44f2a4ab085f52299ed9de70d836362ae09672a06de8a60ad",
       "description": "The built-in Myra GitLab.com app is used by default for one-click Sign in. Override with your own for a self-hosted instance."
     },
     {
