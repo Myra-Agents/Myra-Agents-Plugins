@@ -31,13 +31,16 @@ A browser opens for consent; the refresh token is stored in the OS keychain
 (`myra-connector-gitlab`). Leave `GITLAB_TOKEN` blank — setting it always wins
 and skips OAuth entirely (see `../_sdk/oauth.mjs::accessToken`).
 
-## Configure the webhook (GitLab side)
+## (Optional) Configure the webhook (GitLab side)
+
+Triggers work out of the box by **polling** — no webhook needed. Only set this up
+if you want instant (non-polled) delivery and can expose a routable URL.
 
 In your project → Settings → Webhooks → Add webhook:
 
 - **URL**: the URL shown in the gitlab plugin panel
-  (`http://<host>:<port>/hooks/gitlab/gitlab`, or the hub's public webhook URL
-  when enrolled — GitLab can't reach `127.0.0.1`).
+  (`http://<host>:<port>/hooks/gitlab/gitlab`). GitLab can't reach `127.0.0.1`,
+  so this needs a routable host.
 - **Secret token**: same value as this plugin's `GITLAB_WEBHOOK_SECRET`.
 - **Trigger**: Push events, Merge request events, Issues events (whichever you
   want a patrol to react to — anything else GitLab sends to the same URL is
