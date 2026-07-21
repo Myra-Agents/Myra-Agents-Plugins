@@ -8,7 +8,7 @@ import http from "node:http";
 import crypto from "node:crypto";
 import { spawn, execFileSync } from "node:child_process";
 import { platform } from "node:os";
-import { writeFileSync, readFileSync, chmodSync } from "node:fs";
+import { writeFileSync, readFileSync, chmodSync, unlinkSync } from "node:fs";
 import { join } from "node:path";
 
 const GOOGLE_AUTH = "https://accounts.google.com/o/oauth2/v2/auth";
@@ -67,6 +67,34 @@ export function loadRefreshToken(id) {
     } catch { /* fall through */ }
   }
   try { return readFileSync(tokenFile(), "utf8").trim(); } catch { return null; }
+}
+
+// Disconnect: forget the refresh token everywhere it might live — the server
+// secret store (primary), the local keychain/file fallback, and the in-process
+// access-token cache. Best-effort per store so one failure doesn't block the
+// others; after this, `accessToken` throws "not connected" until re-consent.
+export async function clearRefreshToken(id) {
+  cache.delete(id);
+  const rpcUrl = (process.env.RPC_URL || "http://127.0.0.1:4319").replace(/\/$/, "");
+  try {
+    await fetch(`${rpcUrl}/rpc/set_plugin_secret`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        ...(process.env.SERVER_TOKEN ? { authorization: `Bearer ${process.env.SERVER_TOKEN}` } : {}),
+      },
+      body: JSON.stringify({ plugin: id, key: "REFRESH_TOKEN", value: "" }),
+      signal: AbortSignal.timeout(5000),
+    });
+  } catch {
+    /* server unreachable — the local clear below still disconnects standalone */
+  }
+  if (platform() === "darwin") {
+    try {
+      execFileSync("security", ["delete-generic-password", "-s", service(id), "-a", KEYCHAIN_ACCOUNT]);
+    } catch { /* not present */ }
+  }
+  try { unlinkSync(tokenFile()); } catch { /* not present */ }
 }
 
 // ---- one-time consent flow (run via the connector's connect.mjs) ------------

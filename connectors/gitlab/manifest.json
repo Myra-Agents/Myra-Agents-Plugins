@@ -38,6 +38,7 @@
       ]
     },
     "setup": { "type": "oauth", "command": "node connect.mjs", "label": "Sign in with GitLab" },
+    "disconnect": { "type": "oauth", "command": "node disconnect.mjs", "label": "Disconnect" },
     "auth": [
       {
         "id": "signin",
