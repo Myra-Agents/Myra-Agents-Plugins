@@ -33,10 +33,15 @@ const adapter = {
   // hatch: the SDK's accessToken() (../_sdk/oauth.mjs) returns GITLAB_TOKEN
   // verbatim when set, skipping OAuth entirely — one adapter, two auth paths.
   auth: {
-    scopes: ["api"],
+    // `api` for the REST calls + MR creation, repository scopes so the OAuth
+    // token can push the worktree branch over HTTPS.
+    scopes: ["api", "read_repository", "write_repository"],
     authUri: `${baseUrl()}/oauth/authorize`,
     tokenUri: `${baseUrl()}/oauth/token`,
     injectedTokenEnv: "GITLAB_TOKEN",
+    // GitLab needs an exact registered redirect URI — pin a fixed loopback port
+    // so the shipped Myra OAuth app can register http://localhost:47823/.
+    redirectPort: 47823,
   },
 
   // TRIGGER side (poll). Outbound — no public URL needed. The SDK reporter calls

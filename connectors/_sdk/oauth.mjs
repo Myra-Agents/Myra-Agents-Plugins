@@ -92,7 +92,11 @@ export async function runConsentFlow({ id, clientId, clientSecret, auth }) {
       server.close();
       resolve({ code: url.searchParams.get("code"), redirectUri: `http://localhost:${port}/` });
     });
-    server.listen(0, "127.0.0.1", () => {
+    // Google's installed-app flow accepts any loopback port (RFC 8252), so we
+    // bind :0 by default. GitLab does exact redirect-URI matching, so a
+    // connector that needs a registered redirect sets `auth.redirectPort` to a
+    // fixed port and registers `http://localhost:<port>/` on its OAuth app.
+    server.listen(auth.redirectPort || 0, "127.0.0.1", () => {
       const port = server.address().port;
       const u = new URL(authUri);
       u.searchParams.set("client_id", clientId);
