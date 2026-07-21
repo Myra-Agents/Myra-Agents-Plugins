@@ -55,6 +55,18 @@ export async function listPushEvents(token, baseUrl, projectId, { after, max = 2
   return call(token, baseUrl, `/projects/${encodeURIComponent(projectId)}/events?${q}`);
 }
 
+// Projects the token can access — for the project picker. `read_api`/`api` covers it.
+export async function listProjects(token, baseUrl, { search, max = 50 } = {}) {
+  const q = new URLSearchParams({
+    membership: "true",
+    order_by: "last_activity_at",
+    simple: "true",
+    per_page: String(max),
+  });
+  if (search) q.set("search", search);
+  return call(token, baseUrl, `/projects?${q}`);
+}
+
 // GitLab has no separate "draft" boolean on create — a `Draft: ` title prefix is
 // the documented mechanism (still honored by every current GitLab version) and
 // is what marks the MR not-mergeable until a maintainer removes it.

@@ -33,6 +33,10 @@
       "type": "string",
       "description": "Executable invoked request/response (raw {type,config,card} JSON on stdin → result JSON on stdout, bounded by a timeout) when the server dispatches one of this plugin's `catalog.actions` for a patrol. Same path-resolution rules as `exec` (relative paths resolve against the plugin dir; bare names resolve on PATH). Distinct from `exec`, which is long-lived for the event-reaction role."
     },
+    "optionsExec": {
+      "type": "string",
+      "description": "Executable invoked request/response (raw {field,search?} JSON on stdin → [{value,label}] JSON on stdout, bounded by a timeout) to populate a config field marked `dynamic: true` (e.g. a GitLab project picker fetched live from the API). Same path-resolution rules as `exec`. Dispatched by the server's `connector_options` rpc."
+    },
     "providesAgents": {
       "type": "array",
       "items": { "$ref": "#/$defs/agentPreset" },
@@ -84,6 +88,7 @@
                   "label": { "type": "string" },
                   "type": { "enum": ["string", "secret", "boolean", "number", "select", "multiselect"] },
                   "options": { "type": "array", "items": { "type": "string" } },
+                  "dynamic": { "type": "boolean", "description": "For a `select`: fetch the option list live from the connector's `optionsExec` (keyed by this field's `key`) instead of the static `options` array. The app renders a searchable dropdown that still allows a free-typed value." },
                   "required": { "type": "boolean" },
                   "placeholder": { "type": "string" },
                   "description": { "type": "string" }
@@ -143,7 +148,9 @@
                   "properties": {
                     "key": { "type": "string", "description": "Config key (lowercase); values may template {{result}} {{title}} {{card.*}}." },
                     "label": { "type": "string" },
-                    "type": { "enum": ["string", "secret", "boolean", "number"] },
+                    "type": { "enum": ["string", "secret", "boolean", "number", "select", "multiselect"] },
+                    "options": { "type": "array", "items": { "type": "string" } },
+                    "dynamic": { "type": "boolean", "description": "For a `select`: fetch the option list live from the connector's `optionsExec` (keyed by this field's `key`) instead of the static `options` array." },
                     "required": { "type": "boolean" },
                     "placeholder": { "type": "string" },
                     "description": { "type": "string" }
@@ -175,6 +182,7 @@
           "items": { "type": "string" },
           "description": "Choices for select/multiselect."
         },
+        "dynamic": { "type": "boolean", "default": false, "description": "For a `select`: fetch the option list live from the connector's `optionsExec` (keyed by this field's `key`) instead of the static `options` array." },
         "required": { "type": "boolean", "default": false },
         "default": {},
         "description": { "type": "string" },

@@ -82,6 +82,48 @@ export async function runActionFromStdin(adapter) {
   }
 }
 
+/**
+ * Entrypoint for a connector's `options.mjs`: read `{ field, search? }` from
+ * stdin, call the adapter's `options[field]` handler, print the resulting
+ * `[{ value, label }]` list on stdout, exit. Powers dynamic config-field
+ * dropdowns (e.g. GitLab's project picker) — the server proxies a
+ * `connector_options` rpc here. Read-only; same access-token wiring as actions.
+ */
+export async function runOptionsFromStdin(adapter) {
+  const chunks = [];
+  for await (const c of process.stdin) chunks.push(c);
+  let payload;
+  try {
+    payload = JSON.parse(Buffer.concat(chunks).toString() || "{}");
+  } catch (e) {
+    process.stderr.write(`bad options input: ${e.message}`);
+    process.exit(1);
+  }
+  const handler = adapter.options?.[payload.field];
+  if (!handler) {
+    process.stderr.write(`${adapter.id}: no options for field "${payload.field}"`);
+    process.exit(1);
+  }
+  const ctx = {
+    accessToken: () =>
+      accessToken({
+        id: adapter.id,
+        clientId: process.env.OAUTH_CLIENT_ID,
+        clientSecret: process.env.OAUTH_CLIENT_SECRET,
+        auth: adapter.auth,
+      }),
+    log: (...a) => console.error(`[${adapter.id}:options]`, ...a),
+  };
+  try {
+    const opts = (await handler(ctx, { search: payload.search })) || [];
+    process.stdout.write(JSON.stringify(opts));
+    process.exit(0);
+  } catch (e) {
+    process.stderr.write(String(e?.message || e));
+    process.exit(1);
+  }
+}
+
 /** Resolve {{result}} {{title}} {{status}} {{card.<field>}} in an action config. */
 export function renderConfig(config, card) {
   const base = { result: card?.agentResult ?? "", title: card?.title ?? "", status: card?.status ?? "" };

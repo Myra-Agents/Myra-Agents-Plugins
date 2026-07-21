@@ -16,6 +16,7 @@ import {
   listMergeRequests,
   listIssuesUpdated,
   listPushEvents,
+  listProjects,
 } from "./gitlab.mjs";
 
 const execFileAsync = promisify(execFile);
@@ -147,6 +148,23 @@ const adapter = {
       });
       ctx.log(`opened draft MR !${mr.iid} → ${mr.web_url}`);
       return { mrIid: mr.iid, mrUrl: mr.web_url, draft: true };
+    },
+  },
+
+  // Dynamic option lists for trigger/action config fields (declared in the
+  // manifest via `dynamic: true` + `optionsExec`). The server proxies a
+  // `connector_options { field }` rpc to options.mjs, which calls the handler
+  // named for the field. `project` = the projects this token can see, for the
+  // patrol editor's project picker — `read_api`/`api` scope already covers it,
+  // so no extra permission beyond what MR creation needs.
+  options: {
+    async project(ctx, { search } = {}) {
+      const token = await ctx.accessToken();
+      const projects = await listProjects(token, baseUrl(), { search });
+      return projects.map((p) => ({
+        value: p.path_with_namespace,
+        label: p.name_with_namespace || p.path_with_namespace,
+      }));
     },
   },
 

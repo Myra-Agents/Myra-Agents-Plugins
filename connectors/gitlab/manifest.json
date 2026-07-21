@@ -5,6 +5,7 @@
   "args": ["reactor.mjs"],
   "subscribes": ["schedules-updated"],
   "runAction": "./run-action.mjs",
+  "optionsExec": "./options.mjs",
   "catalog": {
     "name": "GitLab",
     "icon": "gitlab",
@@ -17,10 +18,11 @@
         {
           "key": "project",
           "label": "GitLab project",
-          "type": "string",
+          "type": "select",
+          "dynamic": true,
           "required": true,
           "placeholder": "group/project or 42",
-          "description": "The project to watch — numeric id or URL-encoded group/project path."
+          "description": "The project to watch — pick from your GitLab projects, or type a group/project path."
         },
         {
           "key": "events",
@@ -63,10 +65,11 @@
           {
             "key": "projectId",
             "label": "GitLab project",
-            "type": "string",
+            "type": "select",
+            "dynamic": true,
             "required": true,
             "placeholder": "group/project or 42",
-            "description": "Numeric project id or URL-encoded group/project path."
+            "description": "Pick from your GitLab projects, or type a group/project path."
           },
           {
             "key": "targetBranch",
