@@ -23,6 +23,11 @@ export async function getProject(token, baseUrl, projectId) {
   return call(token, baseUrl, `/projects/${encodeURIComponent(projectId)}`);
 }
 
+// The account the token belongs to — for showing "Connected as @user".
+export async function getCurrentUser(token, baseUrl) {
+  return call(token, baseUrl, `/user`);
+}
+
 export async function listIssues(token, baseUrl, projectId, { state = "opened", max = 20 } = {}) {
   const q = new URLSearchParams({ state, per_page: String(max) });
   return call(token, baseUrl, `/projects/${encodeURIComponent(projectId)}/issues?${q}`);

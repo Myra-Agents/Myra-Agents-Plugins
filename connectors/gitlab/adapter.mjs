@@ -18,6 +18,7 @@ import {
   listPushEvents,
   listProjects,
   listProjectMembers,
+  getCurrentUser,
 } from "./gitlab.mjs";
 
 const execFileAsync = promisify(execFile);
@@ -164,6 +165,15 @@ const adapter = {
   // on scroll. `api`/`read_api` scope already covers all of this — no extra
   // permission beyond what MR creation needs.
   options: {
+    // The connected account — for "Connected as @user" on the integration card.
+    // Single entry; the app reads options[0].
+    async identity(ctx) {
+      const token = await ctx.accessToken();
+      const u = await getCurrentUser(token, baseUrl());
+      const label = u.name ? `@${u.username} · ${u.name}` : `@${u.username}`;
+      return { options: [{ value: u.username, label }], hasMore: false };
+    },
+
     // The projects this token can see, for the project picker.
     async project(ctx, { search, page = 1 } = {}) {
       const token = await ctx.accessToken();
