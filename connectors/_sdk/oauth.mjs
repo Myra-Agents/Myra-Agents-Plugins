@@ -152,7 +152,11 @@ export async function runConsentFlow({ id, clientId, clientSecret, auth }) {
       openBrowser(u.toString());
       console.error(`\nIf no browser opened, visit:\n${u.toString()}\n`);
     });
-    setTimeout(() => { server.close(); reject(new Error("consent timed out")); }, 5 * 60_000);
+    // `unref` so this timer never keeps the process alive: while waiting for
+    // consent the loopback server holds the loop; once it closes (success or
+    // error) the process must exit *now* so the server emits plugin-setup-done
+    // and the app's spinner stops — not linger 5 min for this timer.
+    setTimeout(() => { server.close(); reject(new Error("consent timed out")); }, 5 * 60_000).unref();
   });
 
   const tok = await exchange(tokenUri, {
