@@ -9,3 +9,7 @@ import adapter from "./adapter.mjs";
 
 await clearRefreshToken(adapter.id);
 console.error(`[${adapter.id}] disconnected — refresh token cleared`);
+// Exit now: a lingering AbortSignal.timeout timer inside clearRefreshToken would
+// otherwise keep the process alive for seconds, delaying plugin-setup-done and
+// the app's live update.
+process.exit(0);

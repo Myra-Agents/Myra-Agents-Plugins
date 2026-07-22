@@ -28,6 +28,9 @@ if (!clientId) {
 try {
   await runConsentFlow({ id: adapter.id, clientId, clientSecret, auth: adapter.auth });
   console.error("Connected. Refresh token stored. The gitlab connector's actions can run now.");
+  // Exit now — lingering AbortSignal.timeout timers in the token exchange /
+  // storeRefreshToken keep the loop alive otherwise, delaying plugin-setup-done.
+  process.exit(0);
 } catch (e) {
   console.error("Failed:", e.message);
   process.exit(1);
