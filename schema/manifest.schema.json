@@ -29,6 +29,14 @@
       "items": { "type": "string" },
       "description": "Bus events forwarded to exec's stdin. [\"*\"] = all."
     },
+    "runAction": {
+      "type": "string",
+      "description": "Executable invoked request/response (raw {type,config,card} JSON on stdin → result JSON on stdout, bounded by a timeout) when the server dispatches one of this plugin's `catalog.actions` for a patrol. Same path-resolution rules as `exec` (relative paths resolve against the plugin dir; bare names resolve on PATH). Distinct from `exec`, which is long-lived for the event-reaction role."
+    },
+    "optionsExec": {
+      "type": "string",
+      "description": "Executable invoked request/response (raw {field,search?} JSON on stdin → [{value,label}] JSON on stdout, bounded by a timeout) to populate a config field marked `dynamic: true` (e.g. a GitLab project picker fetched live from the API). Same path-resolution rules as `exec`. Dispatched by the server's `connector_options` rpc."
+    },
     "providesAgents": {
       "type": "array",
       "items": { "$ref": "#/$defs/agentPreset" },
@@ -66,7 +74,84 @@
         "trigger": {
           "type": "object",
           "additionalProperties": false,
-          "properties": { "summary": { "type": "string", "description": "One-line description shown under the trigger in the picker." } }
+          "properties": {
+            "summary": { "type": "string", "description": "One-line description shown under the trigger in the picker." },
+            "ruleOptions": {
+              "type": "object",
+              "description": "Turns a generic rule field (from/subjectContains/bodyContains) into a dynamic dropdown fed by the connector's optionsExec. Keyed by rule field name; the value names the options field and its context dependencies (e.g. `from` → an author picker scoped to the selected project).",
+              "additionalProperties": {
+                "type": "object",
+                "required": ["optionsField"],
+                "additionalProperties": false,
+                "properties": {
+                  "optionsField": { "type": "string", "description": "The `optionsExec` field key that supplies the list (e.g. \"author\")." },
+                  "dependsOn": { "type": "array", "items": { "type": "string" }, "description": "Trigger-config keys passed as `context` and that re-trigger a fetch when they change (e.g. [\"project\", \"events\"])." }
+                }
+              }
+            },
+            "config": {
+              "type": "array",
+              "description": "Connector-specific trigger settings (e.g. which GitLab project/events to watch), rendered in the patrol editor's trigger row and stored on the task's eventTrigger.config. Same field shape as catalog.actions[].config.",
+              "items": {
+                "type": "object",
+                "required": ["key", "label", "type"],
+                "additionalProperties": false,
+                "properties": {
+                  "key": { "type": "string" },
+                  "label": { "type": "string" },
+                  "type": { "enum": ["string", "secret", "boolean", "number", "select", "multiselect"] },
+                  "options": { "type": "array", "items": { "type": "string" } },
+                  "dynamic": { "type": "boolean", "description": "For a `select`: fetch the option list live from the connector's `optionsExec` (keyed by this field's `key`) instead of the static `options` array. The app renders a searchable dropdown that still allows a free-typed value." },
+                  "required": { "type": "boolean" },
+                  "placeholder": { "type": "string" },
+                  "description": { "type": "string" },
+                  "hidden": { "type": "boolean", "description": "Never rendered as an editable field in the trigger row — set programmatically (e.g. the event kind, fixed by the Add-Trigger menu). Its `options` are still read to build the menu." }
+                }
+              }
+            }
+          }
+        },
+        "setup": {
+          "type": "object",
+          "required": ["type", "command", "label"],
+          "additionalProperties": false,
+          "description": "An in-app \"Connect\" step (e.g. OAuth consent) the server can run on the user's behalf via the `run_plugin_setup` rpc — see PROTOCOL.md's \"Role 5\".",
+          "properties": {
+            "type": { "enum": ["oauth", "cli"], "description": "Informational — both run the same way (spawn `command`)." },
+            "command": { "type": "string", "description": "Shell-split argv, e.g. \"node connect.mjs\". Spawned with cwd = the plugin dir, env = the instance's resolved config." },
+            "label": { "type": "string", "description": "Button label, e.g. \"Connect GitLab\"." }
+          }
+        },
+        "disconnect": {
+          "type": "object",
+          "required": ["type", "command", "label"],
+          "additionalProperties": false,
+          "description": "A \"Disconnect\" step — same shape and run path as `setup` (via `run_plugin_setup` with action=\"disconnect\"), but its command forgets the stored credential.",
+          "properties": {
+            "type": { "enum": ["oauth", "cli"] },
+            "command": { "type": "string" },
+            "label": { "type": "string", "description": "Button label, e.g. \"Disconnect\"." }
+          }
+        },
+        "auth": {
+          "type": "array",
+          "description": "Auth methods this connector offers, rendered as tabs in the connect wizard. Each groups a subset of the `config` fields; a method with `kind: oauth` also shows a Sign in button that runs `catalog.setup`. Fields not claimed by any method (and not `hidden`) render above the tabs as common settings.",
+          "items": {
+            "type": "object",
+            "required": ["id", "label", "kind"],
+            "additionalProperties": false,
+            "properties": {
+              "id": { "type": "string" },
+              "label": { "type": "string", "description": "Tab label." },
+              "kind": { "enum": ["token", "oauth"], "description": "`oauth` shows a Sign in button (`catalog.setup`); `token` is fields only." },
+              "summary": { "type": "string", "description": "One-line hint shown inside the tab." },
+              "fields": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "Config field keys shown in this tab. Omit for a method that needs no input (e.g. one-click sign in with a shipped client)."
+              }
+            }
+          }
         },
         "actions": {
           "type": "array",
@@ -88,10 +173,13 @@
                   "properties": {
                     "key": { "type": "string", "description": "Config key (lowercase); values may template {{result}} {{title}} {{card.*}}." },
                     "label": { "type": "string" },
-                    "type": { "enum": ["string", "secret", "boolean", "number"] },
+                    "type": { "enum": ["string", "secret", "boolean", "number", "select", "multiselect"] },
+                    "options": { "type": "array", "items": { "type": "string" } },
+                    "dynamic": { "type": "boolean", "description": "For a `select`: fetch the option list live from the connector's `optionsExec` (keyed by this field's `key`) instead of the static `options` array." },
                     "required": { "type": "boolean" },
                     "placeholder": { "type": "string" },
-                    "description": { "type": "string" }
+                    "description": { "type": "string" },
+                    "hidden": { "type": "boolean", "description": "Never rendered as an editable field — set programmatically." }
                   }
                 }
               }
@@ -120,10 +208,12 @@
           "items": { "type": "string" },
           "description": "Choices for select/multiselect."
         },
+        "dynamic": { "type": "boolean", "default": false, "description": "For a `select`: fetch the option list live from the connector's `optionsExec` (keyed by this field's `key`) instead of the static `options` array." },
         "required": { "type": "boolean", "default": false },
         "default": {},
         "description": { "type": "string" },
-        "placeholder": { "type": "string" }
+        "placeholder": { "type": "string" },
+        "hidden": { "type": "boolean", "default": false, "description": "Never rendered in the config form — set programmatically (e.g. an OAuth refresh token filled by the Sign in flow)." }
       }
     },
     "webhookSpec": {
@@ -135,6 +225,10 @@
         "direction": {
           "enum": ["out", "in"],
           "description": "`out` = core POSTs on matching bus events. `in` = core exposes a signed HTTP route."
+        },
+        "optional": {
+          "type": "boolean",
+          "description": "in only — the route still works, but the connector's primary trigger path is elsewhere (e.g. polling), so the app doesn't surface the inbound URL by default. For instant-delivery opt-in on a routable host."
         },
         "urlFrom": {
           "type": "string",
@@ -176,8 +270,8 @@
       "additionalProperties": false,
       "properties": {
         "scheme": {
-          "enum": ["hmac-sha256", "slack", "stripe"],
-          "description": "Named signature scheme implemented in the core."
+          "enum": ["hmac-sha256", "slack", "stripe", "gitlab"],
+          "description": "Named signature scheme implemented in the core. `gitlab` is a plain constant-time compare against the `X-Gitlab-Token` header (GitLab has no HMAC signature)."
         },
         "header": {
           "type": "string",

@@ -1,0 +1,165 @@
+{
+  "name": "gitlab",
+  "version": "0.1.0",
+  "exec": "node",
+  "args": ["reactor.mjs"],
+  "subscribes": ["schedules-updated"],
+  "runAction": "./run-action.mjs",
+  "optionsExec": "./options.mjs",
+  "catalog": {
+    "name": "GitLab",
+    "icon": "gitlab",
+    "description": "Trigger a patrol on a GitLab push, merge request, or issue. Open a merge request with the patrol's result.",
+    "author": "Myra",
+    "verbs": ["trigger", "action"],
+    "trigger": {
+      "summary": "New push, merge request, or issue matching your rules",
+      "ruleOptions": {
+        "from": { "optionsField": "author", "dependsOn": ["project", "events"] }
+      },
+      "config": [
+        {
+          "key": "project",
+          "label": "GitLab project",
+          "type": "select",
+          "dynamic": true,
+          "required": true,
+          "placeholder": "group/project or 42",
+          "description": "The project to watch — pick from your GitLab projects, or type a group/project path."
+        },
+        {
+          "key": "events",
+          "label": "Event types",
+          "type": "multiselect",
+          "options": ["merge_request", "issue", "push"],
+          "hidden": true,
+          "description": "The event kind is fixed per trigger (chosen from the Add-Trigger menu). Options feed that menu; not shown as an editable field."
+        }
+      ]
+    },
+    "setup": { "type": "oauth", "command": "node connect.mjs", "label": "Sign in with GitLab" },
+    "disconnect": { "type": "oauth", "command": "node disconnect.mjs", "label": "Disconnect" },
+    "auth": [
+      {
+        "id": "signin",
+        "label": "Sign in",
+        "kind": "oauth",
+        "summary": "One-click for gitlab.com — nothing to paste. Uses the built-in Myra GitLab app."
+      },
+      {
+        "id": "token",
+        "label": "Token",
+        "kind": "token",
+        "fields": ["GITLAB_TOKEN", "GITLAB_URL"],
+        "summary": "Paste a personal access token with the \"api\" scope. Works on any instance."
+      },
+      {
+        "id": "oauth",
+        "label": "Self-hosted OAuth",
+        "kind": "oauth",
+        "fields": ["GITLAB_URL", "OAUTH_CLIENT_ID", "OAUTH_CLIENT_SECRET"],
+        "summary": "Register an OAuth application on your instance (\"api\" scope), then sign in."
+      }
+    ],
+    "actions": [
+      {
+        "id": "create_mr",
+        "label": "Open a merge request",
+        "summary": "Push the patrol's worktree branch and open it as a draft merge request",
+        "config": [
+          {
+            "key": "projectId",
+            "label": "GitLab project",
+            "type": "select",
+            "dynamic": true,
+            "required": true,
+            "placeholder": "group/project or 42",
+            "description": "Pick from your GitLab projects, or type a group/project path."
+          },
+          {
+            "key": "targetBranch",
+            "label": "Target branch",
+            "type": "string",
+            "placeholder": "Defaults to the project's default branch"
+          },
+          {
+            "key": "title",
+            "label": "Title",
+            "type": "string",
+            "placeholder": "Templated — {{title}}",
+            "description": "Leave blank to use the patrol card's title."
+          },
+          {
+            "key": "description",
+            "label": "Description",
+            "type": "string",
+            "placeholder": "Templated — {{result}}",
+            "description": "Leave blank to use the run's result."
+          }
+        ]
+      }
+    ]
+  },
+  "config": [
+    {
+      "key": "GITLAB_URL",
+      "label": "GitLab instance URL",
+      "type": "string",
+      "default": "https://gitlab.com",
+      "placeholder": "https://gitlab.com",
+      "description": "Only for a self-hosted instance (e.g. https://gitlab.mycompany.com). Leave the default for gitlab.com."
+    },
+    {
+      "key": "GITLAB_TOKEN",
+      "label": "Personal access token",
+      "type": "secret",
+      "placeholder": "glpat-…",
+      "description": "A PAT with the \"api\" scope."
+    },
+    {
+      "key": "OAUTH_CLIENT_ID",
+      "label": "OAuth application ID",
+      "type": "string",
+      "default": "a4194a920626b1e44f2a4ab085f52299ed9de70d836362ae09672a06de8a60ad",
+      "description": "The built-in Myra GitLab.com app is used by default for one-click Sign in. Override with your own for a self-hosted instance."
+    },
+    {
+      "key": "OAUTH_CLIENT_SECRET",
+      "label": "OAuth application secret",
+      "type": "secret",
+      "description": "Only for self-hosted OAuth apps. Leave blank for gitlab.com Sign in (PKCE, no secret)."
+    },
+    {
+      "key": "REFRESH_TOKEN",
+      "label": "GitLab OAuth refresh token",
+      "type": "secret",
+      "hidden": true,
+      "description": "Filled automatically by Sign in."
+    },
+    {
+      "key": "POLL_SECONDS",
+      "label": "Poll interval (seconds)",
+      "type": "number",
+      "default": 60,
+      "hidden": true,
+      "description": "How often Myra checks GitLab for new merge requests / issues / pushes. 60s is polite; keep >= 30."
+    },
+    {
+      "key": "GITLAB_WEBHOOK_SECRET",
+      "label": "Webhook secret (advanced — instant delivery)",
+      "type": "secret",
+      "hidden": true,
+      "description": "Optional. Triggers work out of the box by polling — no secret needed. Only set this if you also wire a GitLab webhook for instant (non-polled) delivery; then use the same value as the webhook's \"Secret token\"."
+    }
+  ],
+  "webhooks": [
+    {
+      "id": "intake",
+      "direction": "in",
+      "route": "gitlab",
+      "optional": true,
+      "exec": "./normalize.mjs",
+      "action": "connector_event"
+    }
+  ]
+}

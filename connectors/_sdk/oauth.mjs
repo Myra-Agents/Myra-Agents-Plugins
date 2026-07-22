@@ -8,7 +8,7 @@ import http from "node:http";
 import crypto from "node:crypto";
 import { spawn, execFileSync } from "node:child_process";
 import { platform } from "node:os";
-import { writeFileSync, readFileSync, chmodSync } from "node:fs";
+import { writeFileSync, readFileSync, chmodSync, unlinkSync } from "node:fs";
 import { join } from "node:path";
 
 const GOOGLE_AUTH = "https://accounts.google.com/o/oauth2/v2/auth";
@@ -35,6 +35,7 @@ export async function storeRefreshToken(id, token) {
         ...(process.env.SERVER_TOKEN ? { authorization: `Bearer ${process.env.SERVER_TOKEN}` } : {}),
       },
       body: JSON.stringify({ plugin: id, key: "REFRESH_TOKEN", value: token }),
+      signal: AbortSignal.timeout(10_000),
     });
     if (r.ok) return "server";
   } catch {
@@ -68,6 +69,34 @@ export function loadRefreshToken(id) {
   try { return readFileSync(tokenFile(), "utf8").trim(); } catch { return null; }
 }
 
+// Disconnect: forget the refresh token everywhere it might live — the server
+// secret store (primary), the local keychain/file fallback, and the in-process
+// access-token cache. Best-effort per store so one failure doesn't block the
+// others; after this, `accessToken` throws "not connected" until re-consent.
+export async function clearRefreshToken(id) {
+  cache.delete(id);
+  const rpcUrl = (process.env.RPC_URL || "http://127.0.0.1:4319").replace(/\/$/, "");
+  try {
+    await fetch(`${rpcUrl}/rpc/set_plugin_secret`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        ...(process.env.SERVER_TOKEN ? { authorization: `Bearer ${process.env.SERVER_TOKEN}` } : {}),
+      },
+      body: JSON.stringify({ plugin: id, key: "REFRESH_TOKEN", value: "" }),
+      signal: AbortSignal.timeout(5000),
+    });
+  } catch {
+    /* server unreachable — the local clear below still disconnects standalone */
+  }
+  if (platform() === "darwin") {
+    try {
+      execFileSync("security", ["delete-generic-password", "-s", service(id), "-a", KEYCHAIN_ACCOUNT]);
+    } catch { /* not present */ }
+  }
+  try { unlinkSync(tokenFile()); } catch { /* not present */ }
+}
+
 // ---- one-time consent flow (run via the connector's connect.mjs) ------------
 
 export async function runConsentFlow({ id, clientId, clientSecret, auth }) {
@@ -92,7 +121,23 @@ export async function runConsentFlow({ id, clientId, clientSecret, auth }) {
       server.close();
       resolve({ code: url.searchParams.get("code"), redirectUri: `http://localhost:${port}/` });
     });
-    server.listen(0, "127.0.0.1", () => {
+    // A connector with a fixed `redirectPort` (GitLab) can only run one consent
+    // at a time — if the port is already bound (a prior sign-in still open),
+    // fail fast with a clear message instead of an unhandled 'error' crash.
+    server.on("error", (e) => {
+      reject(
+        new Error(
+          e.code === "EADDRINUSE"
+            ? `sign-in port :${auth.redirectPort} is busy — another sign-in is already open; close it and retry`
+            : `loopback server error: ${e.message}`,
+        ),
+      );
+    });
+    // Google's installed-app flow accepts any loopback port (RFC 8252), so we
+    // bind :0 by default. GitLab does exact redirect-URI matching, so a
+    // connector that needs a registered redirect sets `auth.redirectPort` to a
+    // fixed port and registers `http://localhost:<port>/` on its OAuth app.
+    server.listen(auth.redirectPort || 0, "127.0.0.1", () => {
       const port = server.address().port;
       const u = new URL(authUri);
       u.searchParams.set("client_id", clientId);
@@ -107,7 +152,11 @@ export async function runConsentFlow({ id, clientId, clientSecret, auth }) {
       openBrowser(u.toString());
       console.error(`\nIf no browser opened, visit:\n${u.toString()}\n`);
     });
-    setTimeout(() => { server.close(); reject(new Error("consent timed out")); }, 5 * 60_000);
+    // `unref` so this timer never keeps the process alive: while waiting for
+    // consent the loopback server holds the loop; once it closes (success or
+    // error) the process must exit *now* so the server emits plugin-setup-done
+    // and the app's spinner stops — not linger 5 min for this timer.
+    setTimeout(() => { server.close(); reject(new Error("consent timed out")); }, 5 * 60_000).unref();
   });
 
   const tok = await exchange(tokenUri, {
@@ -141,17 +190,32 @@ export async function accessToken({ id, clientId, clientSecret, auth }) {
     clientId, clientSecret,
     body: { refresh_token: refresh, grant_type: "refresh_token" },
   });
+  // Rotating providers (GitLab) return a NEW refresh_token on every refresh and
+  // invalidate the old one — persist it back or the next refresh fails with
+  // invalid_grant (~1h after sign-in). Google omits it (non-rotating), so there's
+  // nothing to store. Update this process's env too, for a later same-run refresh.
+  if (tok.refresh_token && tok.refresh_token !== refresh) {
+    process.env.REFRESH_TOKEN = tok.refresh_token;
+    await storeRefreshToken(id, tok.refresh_token).catch(() => {});
+  }
   cache.set(id, { token: tok.access_token, exp: Date.now() + tok.expires_in * 1000 });
   return tok.access_token;
 }
 
 async function exchange(tokenUri, { clientId, clientSecret, redirectUri, body }) {
-  const form = new URLSearchParams({ client_id: clientId, client_secret: clientSecret, ...body });
+  const form = new URLSearchParams({ client_id: clientId, ...body });
+  // Public PKCE clients (e.g. GitLab's shipped Myra app) have no secret — sending
+  // an empty client_secret makes GitLab reject the exchange. Only include it when
+  // the connector actually has one (Google desktop clients do).
+  if (clientSecret) form.set("client_secret", clientSecret);
   if (redirectUri) form.set("redirect_uri", redirectUri);
+  // A timeout so a stalled token endpoint can't hang the consent flow (which
+  // holds the server's run_plugin_setup lock until the process exits).
   const r = await fetch(tokenUri, {
     method: "POST",
     headers: { "content-type": "application/x-www-form-urlencoded" },
     body: form,
+    signal: AbortSignal.timeout(20_000),
   });
   if (!r.ok) throw new Error(`token endpoint ${r.status}: ${await r.text()}`);
   return r.json();

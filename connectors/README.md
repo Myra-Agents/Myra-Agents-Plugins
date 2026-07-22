@@ -80,6 +80,25 @@ Injected as env by the host, read by the SDK — the adapter never touches them:
 `OAUTH_CLIENT_ID`, `OAUTH_CLIENT_SECRET`. Add only your service's own keys
 (e.g. `GMAIL_QUERY`, `SLACK_TOKEN`).
 
+## Three connector shapes
+
+Not every connector needs a poll loop:
+
+| Shape | Trigger | Actions | Example |
+|---|---|---|---|
+| **Poll connector** | `runConnector(adapter)` long-lived, `adapter.poll()` on a timer | `adapter.actions` via `run-action.mjs` | `gmail` — no per-project webhook for "new mail" |
+| **Manifest-only webhook** | core-handled inbound webhook, `verify`+`map` (no exec at all) | none | `integrations/github` — one event shape, no action side |
+| **Webhook trigger + exec actions** | core-handled inbound webhook, `exec` transform (multiple event shapes on one URL) | `adapter.actions` via `run-action.mjs` | `gitlab` — push/MR/issue on one URL, discriminated by a header |
+
+A connector with a real per-project/per-item webhook and no reason to poll skips
+`exec`/`subscribes`/`reactor.mjs` entirely — see `gitlab/manifest.json` (no
+top-level `exec`, only `webhooks` + `runAction`). The trigger side then routes
+through the core's `connector_event` rpc (server-side, matches every enabled
+patrol's `eventTrigger` rules) instead of this SDK's own `RULES`/poll loop —
+see `connector-trigger-binding.md`'s "v2" binding and `PROTOCOL.md`'s "Role 4 —
+Patrol actions". `runAction` (any shape) is still request/response via
+`run-action.mjs` / `runActionFromStdin(adapter)`, unchanged.
+
 ## Write a new connector
 
 1. `connectors/<id>/adapter.mjs` — implement `poll` (+ `send`/`tools` if useful).

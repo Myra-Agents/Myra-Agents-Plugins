@@ -82,6 +82,58 @@ export async function runActionFromStdin(adapter) {
   }
 }
 
+/**
+ * Entrypoint for a connector's `options.mjs`: read `{ field, search?, page?,
+ * context? }` from stdin, call the adapter's `options[field]` handler, print
+ * `{ options: [{value,label}], hasMore }` on stdout, exit. Powers dynamic
+ * config-field dropdowns (e.g. GitLab's project / author pickers) with
+ * lazy-loading — the server proxies a `connector_options` rpc here. `context`
+ * carries sibling field values a handler may depend on (e.g. author needs the
+ * selected project). Read-only; same access-token wiring as actions.
+ *
+ * A handler may return a bare `[{value,label}]` array (treated as a single page,
+ * `hasMore: false`) or `{ options, hasMore }` for pagination.
+ */
+export async function runOptionsFromStdin(adapter) {
+  const chunks = [];
+  for await (const c of process.stdin) chunks.push(c);
+  let payload;
+  try {
+    payload = JSON.parse(Buffer.concat(chunks).toString() || "{}");
+  } catch (e) {
+    process.stderr.write(`bad options input: ${e.message}`);
+    process.exit(1);
+  }
+  const handler = adapter.options?.[payload.field];
+  if (!handler) {
+    process.stderr.write(`${adapter.id}: no options for field "${payload.field}"`);
+    process.exit(1);
+  }
+  const ctx = {
+    accessToken: () =>
+      accessToken({
+        id: adapter.id,
+        clientId: process.env.OAUTH_CLIENT_ID,
+        clientSecret: process.env.OAUTH_CLIENT_SECRET,
+        auth: adapter.auth,
+      }),
+    log: (...a) => console.error(`[${adapter.id}:options]`, ...a),
+  };
+  try {
+    const raw = await handler(ctx, {
+      search: payload.search,
+      page: payload.page || 1,
+      context: payload.context || {},
+    });
+    const result = Array.isArray(raw) ? { options: raw, hasMore: false } : { options: raw?.options ?? [], hasMore: !!raw?.hasMore };
+    process.stdout.write(JSON.stringify(result));
+    process.exit(0);
+  } catch (e) {
+    process.stderr.write(String(e?.message || e));
+    process.exit(1);
+  }
+}
+
 /** Resolve {{result}} {{title}} {{status}} {{card.<field>}} in an action config. */
 export function renderConfig(config, card) {
   const base = { result: card?.agentResult ?? "", title: card?.title ?? "", status: card?.status ?? "" };
@@ -94,6 +146,86 @@ export function renderConfig(config, card) {
   const out = {};
   for (const [k, v] of Object.entries(config || {})) out[k] = tmpl(v);
   return out;
+}
+
+/**
+ * Poll-and-report runtime — the outbound alternative to inbound webhooks. No
+ * public URL needed: the connector polls the service (adapter.pollProject) for
+ * the targets the server says to watch (myra.watch), dedupes, and reports each
+ * new event to the server's `connector_event` rpc, which matches it against
+ * every enabled patrol's eventTrigger rules and launches the bound one. The
+ * connector stays a thin event source; the patrol store owns the routing.
+ *
+ * Kept alive by the manifest's `subscribes` (the server runs the exec
+ * long-lived); this loop ignores stdin. Offline test: FAKE_EVENT reports one
+ * event and exits.
+ */
+export async function runReporter(adapter) {
+  const cfg = {
+    clientId: env("OAUTH_CLIENT_ID", ""),
+    clientSecret: env("OAUTH_CLIENT_SECRET", ""),
+    rpcUrl: env("RPC_URL", "http://127.0.0.1:4319"),
+    token: env("SERVER_TOKEN", ""),
+    pollSeconds: num("POLL_SECONDS", 60),
+    dryRun: bool("DRY_RUN", false),
+  };
+  const myra = myraClient({ rpcUrl: cfg.rpcUrl, token: cfg.token });
+  const log = (...a) => console.error(`[${adapter.id}]`, ...a);
+  const ctx = {
+    accessToken: () =>
+      accessToken({ id: adapter.id, clientId: cfg.clientId, clientSecret: cfg.clientSecret, auth: adapter.auth }),
+    log,
+    config: process.env,
+  };
+
+  const fake = process.env.FAKE_EVENT;
+  if (fake) {
+    const event = { connector: adapter.id, ...normalizeEvent(JSON.parse(fake)) };
+    log(`FAKE — report → connector_event id=${event.id}`);
+    if (!cfg.dryRun) log(`launched: ${JSON.stringify(await myra.connectorEvent(event))}`);
+    else log("DRY — not reported");
+    process.exit(0);
+  }
+
+  if (!(await myra.ping().catch(() => false))) log(`warning: Myra server not reachable at ${cfg.rpcUrl}`);
+  log(`reporter started — polling every ${cfg.pollSeconds}s`);
+  poll();
+
+  async function poll() {
+    try {
+      const watch =
+        (await myra.watch(adapter.id).catch((e) => {
+          log("watch error:", e.message);
+          return {};
+        })) || {};
+      const targets = watch.projects || [];
+      for (const target of targets) {
+        const events = (await adapter.pollProject(ctx, target)) || [];
+        for (const raw of events) {
+          const event = { connector: adapter.id, ...normalizeEvent(raw) };
+          // Dedupe per target so the same event id under two projects both fire.
+          const key = `${target.project ?? ""}:${event.id}`;
+          if (hasSeen(key)) continue;
+          markSeen(key);
+          if (adapter.isSelfSent?.(event)) continue;
+          if (cfg.dryRun) {
+            log(`DRY event ${key}`);
+            continue;
+          }
+          try {
+            await myra.connectorEvent(event);
+            log(`reported ${event.type || "event"} ${key}`);
+          } catch (e) {
+            log("report error:", e.message);
+          }
+        }
+      }
+    } catch (e) {
+      log("poll error:", e.message);
+    } finally {
+      setTimeout(poll, cfg.pollSeconds * 1000);
+    }
+  }
 }
 
 export async function runConnector(adapter) {

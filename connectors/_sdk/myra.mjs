@@ -28,6 +28,14 @@ export function myraClient({ rpcUrl, token }) {
     // Launch the agent bound to an existing card. Returns {runId} or {queued}.
     launchAgent: (cardId, workingDir) =>
       rpc("launch_agent", { input: { cardId, ...(workingDir ? { workingDir } : {}) } }),
+    // Report a normalized connector event to the server, which matches it against
+    // every enabled patrol's eventTrigger rules and launches the bound one (v2
+    // binding — see connector-trigger-binding.md). `event` carries `connector`.
+    connectorEvent: (event) => rpc("connector_event", { input: event }),
+    // Ask the server what this connector should watch — the projects/targets
+    // aggregated from every enabled patrol's GitLab trigger config. Returns
+    // `{ projects: [{ project, events, since? }] }`.
+    watch: (connector) => rpc("connector_watch", { connector }),
     ping: () => fetch(`${base}/healthz`).then((r) => r.ok),
   };
 }
